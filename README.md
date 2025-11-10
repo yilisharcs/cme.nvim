@@ -24,6 +24,16 @@ Using [lazy.nvim](https://github.com/folke/lazy.nvim):
 }
 ```
 
+## Configuration
+
+Below are the available options and their default values:
+
+```lua
+vim.g.cme = {
+    shell = vim.o.shell
+}
+```
+
 ## Usage
 
 cme.nvim provides a `:Compile` command that runs tasks in a terminal and

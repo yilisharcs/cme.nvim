@@ -45,6 +45,8 @@ cleanup() {
 
 trap cleanup EXIT INT
 
+# Get the shell argument and remove it from the list
+CME_SHELL="$1"; shift
 CMD="$*"
 
 GREET_DIR="${WHITE_BOLD}-*- ${GREEN}DIR:${WHITE} $(pwd)${RESET}"
@@ -58,4 +60,4 @@ if [ $# -eq 0 ]; then
         exit 1
 fi
 
-sh -c "$CMD"
+$CME_SHELL -c "$CMD"
