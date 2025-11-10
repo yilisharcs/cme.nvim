@@ -27,7 +27,11 @@ cleanup() {
                     "at ${YELLOW_BOLD}${end_time}${RESET},"     \
                     "duration ${CYAN_BOLD}${duration}${RESET}"
         elif [ $exit_code -ge 128 ]; then
-            local signal_num=$((exit_code - 128))
+            if [ "$exit_code" -eq 254 ]; then
+                signal_num=2
+            else
+                signal_num=$((exit_code - 128))
+            fi
             echo -e "Compilation ${RED_BOLD}exited abnormally${RESET}"  \
                     "with ${RED_BOLD}signal ${signal_num}${RESET} at"   \
                     "${YELLOW_BOLD}${end_time}${RESET},"                \

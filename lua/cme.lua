@@ -64,8 +64,13 @@ function M.compile(opts)
 
         local function on_exit(term, _, code, _)
                 local exit_title = ("compilation://exit [%s]"):format(code)
+                local sig
                 if code >= 128 then
-                        local sig = code - 128
+                        if code == 254 then
+                                sig = 2
+                        else
+                                sig = code - 128
+                        end
                         vim.api.nvim_buf_set_name(
                                 term.bufnr,
                                 ("compilation://signal [%s]"):format(sig)
