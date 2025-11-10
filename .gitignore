@@ -1,0 +1,7 @@
+# File backups
+*.bak
+
+# luarocks build files
+*.src.rock
+*.zip
+*.tar.gz

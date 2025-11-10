@@ -1,0 +1,18 @@
+*cme.nvim.txt*                                           Compilation Mode Extern
+
+Apache License 2.0 Copyright (c) 2025 yilisharcs
+
+------------------------------------------------------------------------------
+                              Table of Contents
+
+  INTRODUCTION ................................................... |CME-intro|
+------------------------------------------------------------------------------
+                                                                     *CME-intro*
+
+cme.nvim provides a `:Compile` command that runs tasks in a terminal and loads
+their output into the quickfix list. Arguments are passed to a bash script
+which tracks the command's start time, end time, and duration. If `:Compile` is
+called with no arguments, it executes the last known task.
+
+
+ vim:tw=78:ts=8:noet:ft=help:norl:
