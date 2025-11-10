@@ -49,7 +49,6 @@ function M.compile(opts)
         end
 
         local efm
-        local qftf = vim.o.qftf and vim.fn.eval(vim.o.qftf) or ""
         if opts.fargs[1] == "grep" then
                 efm = vim.o.grepformat
         else
@@ -58,7 +57,6 @@ function M.compile(opts)
                         efm = vim.bo.errorformat
                 else
                         efm = "%m"
-                        qftf = ""
                 end
         end
 
@@ -83,7 +81,6 @@ function M.compile(opts)
                         title = exit_title,
                         lines = output,
                         efm = efm,
-                        quickfixtextfunc = qftf,
                 })
         end
 
