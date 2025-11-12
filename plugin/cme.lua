@@ -29,7 +29,7 @@ end
 vim.api.nvim_create_user_command(
         "Compile",
         function(opts) require("cme").compile(opts) end,
-        { nargs = "*", complete = "shellcmd" }
+        { nargs = "*", bang = true, complete = "shellcmd" }
 )
 
 local augroup = vim.api.nvim_create_augroup("CME", { clear = true })

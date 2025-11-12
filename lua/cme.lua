@@ -12,7 +12,8 @@
 --- cme.nvim provides a `:Compile` command that runs tasks in a terminal and loads
 --- their output into the quickfix list. Arguments are passed to a bash script
 --- which tracks the command's start time, end time, and duration. If `:Compile` is
---- called with no arguments, it executes the last known task.
+--- called with no arguments, it executes the last known task. If called with
+--- `:Compile!`, it won't automatically open the quickfix window on exit.
 
 local Terminal = require("toggleterm.terminal").Terminal
 
@@ -108,12 +109,13 @@ function M.compile(opts)
         local compile = Terminal:new({
                 cmd = vim.g.cme_last_cmd,
                 direction = "horizontal",
+                hidden = false,
                 close_on_exit = false,
                 on_open = on_open,
                 on_stdout = on_stdout,
                 on_exit = on_exit,
         })
-        compile:toggle()
+        compile:spawn()
 end
 
 return M
