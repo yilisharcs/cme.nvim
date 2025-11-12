@@ -84,21 +84,19 @@ function M.compile(opts)
         end
 
         local function on_exit(term, job, code, _)
-                local exit_title = ("compilation://exit [%s] [job:%s]"):format(code, job)
-                local sig
+                local exit_title
                 if code >= 128 then
+                        local sig
                         if code == 254 then
                                 sig = 2
                         else
                                 sig = code - 128
                         end
-                        vim.api.nvim_buf_set_name(
-                                term.bufnr,
-                                ("compilation://signal [%s] [job:%s]"):format(sig, job)
-                        )
+                        exit_title = ("compilation://signal [%s] [job:%s]"):format(sig, job)
                 else
-                        vim.api.nvim_buf_set_name(term.bufnr, exit_title)
+                        exit_title = ("compilation://exit [%s] [job:%s]"):format(code, job)
                 end
+                vim.api.nvim_buf_set_name(term.bufnr, exit_title)
 
                 vim.fn.setqflist({}, "r", {
                         title = exit_title,
