@@ -42,7 +42,6 @@ vim.api.nvim_create_autocmd({ "User" }, {
                         vim.o.qftf = ""
                 else
                         vim.o.qftf = vim.g.cme_qftf
-                        print("Hello world")
                 end
         end,
 })
