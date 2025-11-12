@@ -43,24 +43,38 @@ function M.compile(opts)
                 for _, line in ipairs(data) do
                         if line == "" then return end
 
+                        -- line feed
+                        line = line:gsub("\x0d", "")
                         -- erase in line
                         if line:match("\x1b%[K") then
                                 line = line:gsub("\x1b%[K", "")
-                                table.remove(output)
+                                if output[#output] == "" then table.remove(output) end
                         end
-                        -- line feed
-                        line = line:gsub("\x0d", "")
                         -- OSC 8 hyperlink
                         line = line:gsub("\x1b]8;[^\x1b]*\x1b\\", "")
                         -- ansi
                         line = line:gsub("\x1b%[[0-9][:;0-9]*m", "")
 
+                        if opts.fargs[1] == "cargo" then
+                                if line:match("^%[.*%] %d+/%d+:") then return end
+                                if line:match("Building") then return end
+                                if line:match("Compiling") then
+                                        if
+                                                output[#output] == ""
+                                                and not output[#output - 1]:match(
+                                                        "Compilation started at"
+                                                )
+                                        then
+                                                table.remove(output)
+                                        end
+                                end
+                        end
                         table.insert(output, line)
                 end
         end
 
         local efm
-        if opts.fargs[1] == "grep" then
+        if opts.fargs[1] == "grep" or opts.fargs[1] == "rg" then
                 efm = vim.o.grepformat
                 vim.g.cme_qfformat = false
         else
