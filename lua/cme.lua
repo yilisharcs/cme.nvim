@@ -17,8 +17,6 @@
 
 local Terminal = require("toggleterm.terminal").Terminal
 
-vim.g.cme_qftf = vim.o.qftf
-
 local M = {}
 
 function M.compile(opts)
@@ -34,7 +32,7 @@ function M.compile(opts)
         local function on_open(term)
                 vim.api.nvim_buf_set_name(
                         term.bufnr,
-                        ("compilation://run [$] [%s]"):format(term.job_id)
+                        ("compilation://run [$] [job:%s]"):format(term.job_id)
                 )
         end
 
@@ -76,20 +74,17 @@ function M.compile(opts)
         local efm
         if opts.fargs[1] == "grep" or opts.fargs[1] == "rg" then
                 efm = vim.o.grepformat
-                vim.g.cme_qfformat = false
         else
                 local compiler = vim.bo.makeprg:match("%w*")
-                if compiler ~= "" then
+                if opts.fargs[1] == compiler then
                         efm = vim.bo.errorformat
-                        vim.g.cme_qfformat = false
                 else
-                        efm = "%m"
-                        vim.g.cme_qfformat = true
+                        efm = "%f: line %l: %m"
                 end
         end
 
         local function on_exit(term, job, code, _)
-                local exit_title = ("compilation://exit [%s] [%s]"):format(code, job)
+                local exit_title = ("compilation://exit [%s] [job:%s]"):format(code, job)
                 local sig
                 if code >= 128 then
                         if code == 254 then
@@ -99,7 +94,7 @@ function M.compile(opts)
                         end
                         vim.api.nvim_buf_set_name(
                                 term.bufnr,
-                                ("compilation://signal [%s] [%s]"):format(sig, job)
+                                ("compilation://signal [%s] [job:%s]"):format(sig, job)
                         )
                 else
                         vim.api.nvim_buf_set_name(term.bufnr, exit_title)
@@ -110,7 +105,6 @@ function M.compile(opts)
                         lines = output,
                         efm = efm,
                 })
-                vim.api.nvim_exec_autocmds("User", { pattern = "CmeSetQfList" })
 
                 if not opts.bang then
                         vim.cmd.copen()

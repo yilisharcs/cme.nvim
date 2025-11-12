@@ -42,12 +42,8 @@ trap cleanup EXIT INT
 
 # Get the shell argument and remove it from the list
 CME_SHELL="$1"; shift
-CMD="$*"
 
-GREET_DIR="-*- DIR: $(pwd)"
-GREET_CMD="-*- CMD: ${CMD}"
-
-echo -e "$GREET_DIR\n$GREET_CMD\n"
+echo -e "-*- directory: $(pwd | sed "s#^${HOME}#~#") -*-"
 echo -e "Compilation started at ${START_TIME}\n"
 
 if [ $# -eq 0 ]; then
@@ -55,4 +51,4 @@ if [ $# -eq 0 ]; then
         exit 1
 fi
 
-$CME_SHELL -c "$CMD"
+$CME_SHELL -c "$*"
