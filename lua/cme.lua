@@ -30,7 +30,12 @@ function M.compile(opts)
                 return
         end
 
-        local function on_open(term) vim.api.nvim_buf_set_name(term.bufnr, "compilation://run") end
+        local function on_open(term)
+                vim.api.nvim_buf_set_name(
+                        term.bufnr,
+                        ("compilation://run [$] [%s]"):format(term.job_id)
+                )
+        end
 
         local output = {}
         local function on_stdout(_, _, data, _)
@@ -65,8 +70,8 @@ function M.compile(opts)
                 end
         end
 
-        local function on_exit(term, _, code, _)
-                local exit_title = ("compilation://exit [%s]"):format(code)
+        local function on_exit(term, job, code, _)
+                local exit_title = ("compilation://exit [%s] [%s]"):format(code, job)
                 local sig
                 if code >= 128 then
                         if code == 254 then
@@ -76,7 +81,7 @@ function M.compile(opts)
                         end
                         vim.api.nvim_buf_set_name(
                                 term.bufnr,
-                                ("compilation://signal [%s]"):format(sig)
+                                ("compilation://signal [%s] [%s]"):format(sig, job)
                         )
                 else
                         vim.api.nvim_buf_set_name(term.bufnr, exit_title)
