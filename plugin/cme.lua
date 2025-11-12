@@ -31,3 +31,18 @@ vim.api.nvim_create_user_command(
         function(opts) require("cme").compile(opts) end,
         { nargs = "*", complete = "shellcmd" }
 )
+
+local augroup = vim.api.nvim_create_augroup("CME", { clear = true })
+
+vim.api.nvim_create_autocmd({ "User" }, {
+        group = augroup,
+        pattern = "CmeSetQfList",
+        callback = function()
+                if vim.g.cme_qfformat then
+                        vim.o.qftf = ""
+                else
+                        vim.o.qftf = vim.g.cme_qftf
+                        print("Hello world")
+                end
+        end,
+})

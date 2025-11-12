@@ -16,6 +16,8 @@
 
 local Terminal = require("toggleterm.terminal").Terminal
 
+vim.g.cme_qftf = vim.o.qftf
+
 local M = {}
 
 function M.compile(opts)
@@ -51,12 +53,15 @@ function M.compile(opts)
         local efm
         if opts.fargs[1] == "grep" then
                 efm = vim.o.grepformat
+                vim.g.cme_qfformat = false
         else
                 local compiler = vim.bo.makeprg:match("%w*")
                 if compiler ~= "" then
                         efm = vim.bo.errorformat
+                        vim.g.cme_qfformat = false
                 else
                         efm = "%m"
+                        vim.g.cme_qfformat = true
                 end
         end
 
@@ -82,6 +87,17 @@ function M.compile(opts)
                         lines = output,
                         efm = efm,
                 })
+                vim.api.nvim_exec_autocmds("User", { pattern = "CmeSetQfList" })
+
+                if not opts.bang then
+                        vim.cmd.copen()
+                else
+                        vim.notify(
+                                ("Job complete: `%s`"):format(opts.args),
+                                vim.log.levels.INFO,
+                                { title = "cme" }
+                        )
+                end
         end
 
         local compile = Terminal:new({
