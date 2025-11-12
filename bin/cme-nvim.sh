@@ -23,15 +23,9 @@ cleanup() {
             else
                 signal_num=$((exit_code - 128))
             fi
-            echo -e "Compilation exited abnormally"  \
-                    "with signal ${signal_num} at"   \
-                    "${end_time},"                \
-                    "duration ${duration}"
+            echo -e "Compilation exited abnormally with signal ${signal_num} at ${end_time}, duration ${duration}"
         else
-            echo -e "Compilation exited abnormally"  \
-                    "with code ${exit_code} at"      \
-                    "${end_time},"                \
-                    "duration ${duration}"
+            echo -e "Compilation exited abnormally with code ${exit_code} at ${end_time}, duration ${duration}"
         fi
 
         trap - EXIT
