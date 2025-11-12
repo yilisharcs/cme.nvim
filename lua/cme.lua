@@ -121,6 +121,32 @@ function M.compile(opts)
                                 end
                         end
 
+                        local qf_list = vim.fn.getqflist()
+                        if #qf_list > 0 then
+                                local counts = { E = 0, W = 0, I = 0 }
+                                for _, item in ipairs(qf_list) do
+                                        if item.valid then
+                                                if item.type == "E" or item.type == "e" then
+                                                        counts.E = counts.E + 1
+                                                elseif item.type == "W" or item.type == "w" then
+                                                        counts.W = counts.W + 1
+                                                elseif item.type == "I" or item.type == "i" then
+                                                        counts.I = counts.I + 1
+                                                end
+                                        end
+                                end
+
+                                vim.fn.setqflist({}, "r", {
+                                        title = exit_title
+                                                .. " "
+                                                .. ("[E:%d|W:%d|I:%d]"):format(
+                                                        counts.E,
+                                                        counts.W,
+                                                        counts.I
+                                                ),
+                                })
+                        end
+
                         if not opts.bang then
                                 vim.cmd.copen()
                         else
