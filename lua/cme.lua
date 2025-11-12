@@ -43,10 +43,13 @@ function M.compile(opts)
                 for _, line in ipairs(data) do
                         if line == "" then return end
 
+                        -- erase in line
+                        if line:match("\x1b%[K") then
+                                line = line:gsub("\x1b%[K", "")
+                                table.remove(output)
+                        end
                         -- line feed
                         line = line:gsub("\x0d", "")
-                        -- erase in line
-                        line = line:gsub("\x1b%[K", "")
                         -- OSC 8 hyperlink
                         line = line:gsub("\x1b]8;[^\x1b]*\x1b\\", "")
                         -- ansi
