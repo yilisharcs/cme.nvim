@@ -98,21 +98,49 @@ function M.compile(opts)
                 end
                 vim.api.nvim_buf_set_name(term.bufnr, exit_title)
 
-                vim.fn.setqflist({}, "r", {
-                        title = exit_title,
-                        lines = output,
-                        efm = efm,
-                })
+                local co = coroutine.create(function()
+                        if #output == 0 then
+                                vim.fn.setqflist({}, "r", { title = exit_title, efm = efm })
+                        else
+                                local chunk_size = 1000
+                                for i = 1, #output, chunk_size do
+                                        coroutine.yield()
+                                        local chunk = {}
+                                        for j = i, math.min(i + chunk_size - 1, #output) do
+                                                table.insert(chunk, output[j])
+                                        end
+                                        if i == 1 then
+                                                vim.fn.setqflist({}, "r", {
+                                                        lines = chunk,
+                                                        title = exit_title,
+                                                        efm = efm,
+                                                })
+                                        else
+                                                vim.fn.setqflist(chunk, "a")
+                                        end
+                                end
+                        end
 
-                if not opts.bang then
-                        vim.cmd.copen()
-                else
-                        vim.notify(
-                                ("Job complete: `%s`"):format(opts.args),
-                                vim.log.levels.INFO,
-                                { title = "cme" }
-                        )
+                        if not opts.bang then
+                                vim.cmd.copen()
+                        else
+                                vim.notify(
+                                        ("Job complete: `%s`"):format(opts.args),
+                                        vim.log.levels.INFO,
+                                        { title = "cme" }
+                                )
+                        end
+                end)
+
+                local function resume()
+                        local ok, err = coroutine.resume(co)
+                        if not ok then
+                                vim.notify(tostring(err), vim.log.levels.ERROR, { title = "cme" })
+                                return
+                        end
+                        if coroutine.status(co) == "suspended" then vim.schedule(resume) end
                 end
+                resume()
         end
 
         local compile = Terminal:new({

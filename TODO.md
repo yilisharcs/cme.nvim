@@ -10,4 +10,4 @@
     - [x] Open `:copen` as soon as the terminal window closes/job is over
     - [ ] Parse the quickfix list to get the proper number of errors for the qftitle
         NOTE: if valid = 1 then check type string `vim.fn.getqflist()`
-- [ ] Is it possible to set the quickfix list without blocking the editor with massive inputs?
+- [x] Is it possible to set the quickfix list without blocking the editor with massive inputs?
