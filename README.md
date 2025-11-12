@@ -13,6 +13,9 @@ vim.pack.add({
     {
         src = "https://github.com/yilisharcs/cme.nvim",
     },
+    {
+        src = "https://github.com/akinsho/toggleterm.nvim",
+    },
 })
 ```
 
