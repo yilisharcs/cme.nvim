@@ -72,7 +72,12 @@ function M.compile(opts)
         end
 
         local efm
-        if opts.fargs[1] == "grep" or opts.fargs[1] == "rg" then
+        if
+                opts.fargs[1] == "grep"
+                or opts.args:find("| grep")
+                or opts.fargs[1] == "rg"
+                or opts.args:find("| rg")
+        then
                 efm = vim.o.grepformat
         else
                 local compiler = vim.bo.makeprg:match("%w*")
