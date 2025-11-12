@@ -24,6 +24,14 @@ Using [lazy.nvim](https://github.com/folke/lazy.nvim):
 ```lua
 {
     "yilisharcs/cme.nvim",
+    specs = {
+        {
+            "https://github.com/nvim-lualine/lualine.nvim",
+            optional = true,
+            -- Fixes the small delay on `on_exit` updates
+            opts = { options = { refresh = { statusline = 16 } } },
+        },
+    },
 }
 ```
 
