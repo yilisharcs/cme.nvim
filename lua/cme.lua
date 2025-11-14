@@ -30,7 +30,7 @@ function M.compile(opts)
         if #opts.args ~= 0 then vim.g.cme_last_cmd = opts.args end
 
         if not vim.g.cme_last_cmd then
-                vim.notify("Argument required", vim.log.levels.ERROR, { title = "cme" })
+                vim.notify("Argument required.", vim.log.levels.ERROR, { title = "cme" })
                 return
         end
 
