@@ -27,9 +27,7 @@ function M.compile(opts)
                 opts.args = table.concat(opts.fargs, " ")
         end
 
-        if #opts.fargs ~= 0 then
-                vim.g.cme_last_cmd = ("%s %s %s"):format(vim.g.cme_bin, vim.g.cme.shell, opts.args)
-        end
+        if #opts.args ~= 0 then vim.g.cme_last_cmd = opts.args end
 
         if not vim.g.cme_last_cmd then
                 vim.notify("Argument required", vim.log.levels.ERROR, { title = "cme" })
@@ -163,7 +161,7 @@ function M.compile(opts)
                                 vim.cmd.copen()
                         else
                                 vim.notify(
-                                        ("Job complete: `%s`"):format(opts.args),
+                                        ("Job complete: `%s`"):format(vim.g.cme_last_cmd),
                                         vim.log.levels.INFO,
                                         { title = "cme" }
                                 )
@@ -182,7 +180,7 @@ function M.compile(opts)
         end
 
         local compile = Terminal:new({
-                cmd = vim.g.cme_last_cmd,
+                cmd = ("%s %s %s"):format(vim.g.cme_bin, vim.g.cme.shell, vim.g.cme_last_cmd),
                 direction = "horizontal",
                 hidden = false,
                 close_on_exit = false,
