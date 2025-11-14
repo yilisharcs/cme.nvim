@@ -8,13 +8,18 @@ vim.g.loaded_cme = 1
 ---@field shell string Preferred user shell. Accepts any executor that supports -c.
 ---     Default: `vim.o.shell`
 ---
+---@field shell_expand boolean Expand '%' to the current file name.
+---     Default: `true`
+---
 ---@usage >lua
 ---     vim.g.cme = {
----             shell = "python"
+---             shell = "python",
+---             shell_expand = false,
 ---     }
 --- <
 local DEFAULTS = {
         shell = vim.o.shell,
+        shell_expand = true,
 }
 
 vim.g.cme = vim.tbl_deep_extend("force", DEFAULTS, vim.g.cme or {})

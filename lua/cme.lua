@@ -20,6 +20,13 @@ local Terminal = require("toggleterm.terminal").Terminal
 local M = {}
 
 function M.compile(opts)
+        if vim.g.cme.shell_expand then
+                for i, arg in ipairs(opts.fargs) do
+                        if arg:find("%", 1, true) then opts.fargs[i] = vim.fn.expand(arg) end
+                end
+                opts.args = table.concat(opts.fargs, " ")
+        end
+
         if #opts.fargs ~= 0 then
                 vim.g.cme_last_cmd = ("%s %s %s"):format(vim.g.cme_bin, vim.g.cme.shell, opts.args)
         end

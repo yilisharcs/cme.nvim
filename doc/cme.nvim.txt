@@ -28,10 +28,14 @@ Fields ~
 {shell} `(string)` Preferred user shell. Accepts any executor that supports -c.
     Default: `vim.o.shell`
 
+{shell_expand} `(boolean)` Expand '%' to the current file name.
+    Default: `true`
+
 Usage ~
 >lua
     vim.g.cme = {
-            shell = "python"
+            shell = "python",
+            shell_expand = false,
     }
 <
 
