@@ -89,7 +89,7 @@ function M.compile(opts)
                 if opts.fargs[1] == compiler then
                         efm = vim.bo.errorformat
                 else
-                        efm = "%f: line %l: %m"
+                        efm = "%l"
                 end
         end
 
