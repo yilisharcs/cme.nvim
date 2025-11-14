@@ -14,7 +14,7 @@ source = {
 }
 
 description = {
-        summary = "Compilation Mode Extern. Crude implementation of Emacs' Compilation Mode.",
+        summary = "Compilation Mode, not in Emacs.",
         detailed = [[cme.nvim provides a `:Compile` command that runs tasks in a terminal and
         loads their output into the quickfix list. Arguments are passed to a bash script which
         tracks the command's start time, end time, and duration. If `:Compile` is called with

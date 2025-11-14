@@ -1,4 +1,4 @@
-*cme.nvim.txt*                                           Compilation Mode Extern
+*cme.nvim.txt*                                    Compilation Mode, not in Emacs
 
 Apache License 2.0 Copyright (c) 2025 yilisharcs
 

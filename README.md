@@ -1,8 +1,6 @@
 # cme.nvim
 
-**C**ompilation **M**ode **E**xtern.
-
-Crude implementation of Emacs' Compilation Mode.
+**C**ompilation **M**ode, not in **E**macs.
 
 ## Installation
 
