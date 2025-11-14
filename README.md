@@ -39,7 +39,10 @@ Below are the available options and their default values:
 
 ```lua
 vim.g.cme = {
-    shell = vim.o.shell
+    -- Preferred user shell. Accepts any executor that supports -c.
+    shell = vim.o.shell,
+    -- Expand '%' to the current file name.
+    shell_expand = true,
 }
 ```
 
@@ -51,10 +54,6 @@ script which tracks the command's start time, end time, and duration. If
 `:Compile` is called with no arguments, it executes the last known task.
 If called with `:Compile!`, it won't automatically open the quickfix
 window on exit.
-
-> [!WARNING]
->
-> I'm told that my colorizer code isn't Windows-compatible.
 
 ## See also
 
