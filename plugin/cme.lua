@@ -5,7 +5,7 @@ vim.g.loaded_cme = 1
 ---@tag CME-configuration
 ---@class CME.Config
 ---
----@field shell string Preferred user shell. Accepts any executor that supports -c.
+---@field shell string Preferred user shell.
 ---     Default: `vim.o.shell`
 ---
 ---@field shell_expand boolean Expand '%' to the current file name.
@@ -13,7 +13,7 @@ vim.g.loaded_cme = 1
 ---
 ---@usage >lua
 ---     vim.g.cme = {
----             shell = "python",
+---             shell = "bash",
 ---             shell_expand = false,
 ---     }
 --- <
