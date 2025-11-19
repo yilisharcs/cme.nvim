@@ -49,10 +49,9 @@ function M.compile(opts)
         local output = {}
         local function on_stdout(_, _, data, _)
                 for _, line in ipairs(data) do
-                        if line == "" then return end
-
                         -- line feed
                         line = line:gsub("\x0d", "")
+                        if line == "" then return end
                         -- erase in line
                         if line:match("\x1b%[K") then
                                 line = line:gsub("\x1b%[K", "")
