@@ -2,6 +2,8 @@
 
 **C**ompilation **M**ode, not in **E**macs.
 
+![](./assets/showcase.png)
+
 ## Installation
 
 Using Neovim's built-in package manager:
