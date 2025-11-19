@@ -27,7 +27,12 @@ function M.compile(opts)
                 opts.args = table.concat(opts.fargs, " ")
         end
 
-        if #opts.args ~= 0 then vim.g.cme_last_cmd = opts.args end
+        if #opts.args ~= 0 then
+                vim.g.cme_last_cmd = opts.args
+        elseif vim.g.cme_last_cmd then
+                opts.args = vim.g.cme_last_cmd
+                opts.fargs = vim.split(vim.g.cme_last_cmd, " ", {})
+        end
 
         if not vim.g.cme_last_cmd then
                 vim.notify("Argument required.", vim.log.levels.ERROR, { title = "cme" })
