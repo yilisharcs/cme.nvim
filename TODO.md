@@ -10,3 +10,4 @@
     - [x] Open `:copen` as soon as the terminal window closes/job is over
     - [x] Parse the quickfix list to get the proper number of errors for the qftitle
 - [x] Is it possible to set the quickfix list without blocking the editor with massive inputs?
+- [ ] Add tmux as an option to pass through commands for persistence
