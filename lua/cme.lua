@@ -153,10 +153,11 @@ function M.compile(opts)
                                 vim.fn.setqflist({}, "r", {
                                         title = exit_title
                                                 .. " "
-                                                .. ("[E:%d|W:%d|I:%d]"):format(
+                                                .. ("[E:%d|W:%d|I:%d] [cmd:%s]"):format(
                                                         counts.E,
                                                         counts.W,
-                                                        counts.I
+                                                        counts.I,
+                                                        vim.g.cme_last_cmd
                                                 ),
                                 })
                         end
