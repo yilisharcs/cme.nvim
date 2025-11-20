@@ -12,4 +12,4 @@
 - [x] Is it possible to set the quickfix list without blocking the editor with massive inputs?
 - [ ] Add tmux as an option to pass through commands for persistence
 - [x] Add errorformat for find, fd
-- [ ] Look into using extmarks for prettifying the qflist as syntax files are byzantine
+- [x] Look into using extmarks for prettifying the qflist as syntax files are byzantine
