@@ -8,8 +8,10 @@ cleanup() {
 
         epoch_end=$(date +%s%3N)
         end_time=$(date -d "@$((epoch_end/1000))" +"%Y-%m-%d %H:%M:%S")
-        diff_ms=$((epoch_end - EPOCH_START))
-        duration=$(printf "%.3f" $(echo "$diff_ms / 1000" | bc -l))
+        delta=$(printf "%.3f" $(echo $((epoch_end - EPOCH_START)) / 1000 | bc -l))
+        diff=$(date -u -d "@$delta" +"%H:%M:%S.%3N")
+        days=$(printf "%02d" $(echo "$delta / 86400" | bc))
+        duration=$(echo "${days}:$diff" | sed -E 's/^(00:)+//')
 
         echo
 
