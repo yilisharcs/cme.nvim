@@ -35,8 +35,7 @@ trap cleanup EXIT INT
 # Get the shell argument and remove it from the list
 CME_SHELL="$1"; shift
 
-echo -e "-*- directory: $(pwd | sed "s#^${HOME}#~#") -*-\n\n" \
-        "Compilation started at ${START_TIME}\n"
+echo -e "-*- directory: $(pwd | sed "s#^${HOME}#~#") -*-\n\nCompilation started at ${START_TIME}\n"
 
 if [ $# -eq 0 ]; then
         echo -e "Argument required."

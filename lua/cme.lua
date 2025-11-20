@@ -54,6 +54,12 @@ function M.compile(opts)
                 or opts.args:find("| rg")
         then
                 efm = vim.o.grepformat
+        elseif
+                opts.fargs[1] == "find"
+                -- NOTE: requires --strip-cwd-prefix=never
+                or opts.fargs[1] == "fd"
+        then
+                efm = "%l,./%f"
         else
                 local compiler = vim.bo.makeprg:match("%w*")
                 if opts.fargs[1] == compiler then
