@@ -5,9 +5,9 @@ syn match CmeDuration /, duration \zs[^\a]*/ contained containedin=qfFilename
 syn match CmeDirectory /-\*- directory: \zs.*\ze -\*-/ contained containedin=qfFilename
 syn match CmePipes /^||/ conceal
 
-hi CmeExitSuccess guifg=#00af5f gui=bold ctermfg=2
-hi CmeExitFailure guifg=#d7005f gui=bold ctermfg=1
-hi CmeDateTime    guifg=#ffaf00 gui=bold ctermfg=3
-hi CmeDuration    guifg=#00afff gui=bold ctermfg=6
+hi def CmeExitSuccess guifg=#00af5f gui=bold ctermfg=2
+hi def CmeExitFailure guifg=#d7005f gui=bold ctermfg=1
+hi def CmeDateTime    guifg=#ffaf00 gui=bold ctermfg=3
+hi def CmeDuration    guifg=#00afff gui=bold ctermfg=6
 hi def link CmeDirectory CmeDuration
-hi CmePipes       guifg=bg               ctermfg=0
+hi def CmePipes       guifg=bg               ctermfg=0
