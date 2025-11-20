@@ -46,40 +46,6 @@ function M.compile(opts)
                 )
         end
 
-        local output = {}
-        local function on_stdout(_, _, data, _)
-                for _, line in ipairs(data) do
-                        -- line feed
-                        line = line:gsub("\x0d", "")
-                        if line == "" then return end
-                        -- erase in line
-                        if line:match("\x1b%[K") then
-                                line = line:gsub("\x1b%[K", "")
-                                if output[#output] == "" then table.remove(output) end
-                        end
-                        -- OSC 8 hyperlink
-                        line = line:gsub("\x1b]8;[^\x1b]*\x1b\\", "")
-                        -- ansi
-                        line = line:gsub("\x1b%[[0-9][:;0-9]*m", "")
-
-                        if opts.fargs[1] == "cargo" then
-                                if line:match("^%[.*%] %d+/%d+:") then return end
-                                if line:match("Building") then return end
-                                if line:match("Compiling") then
-                                        if
-                                                output[#output] == ""
-                                                and not output[#output - 1]:match(
-                                                        "Compilation started at"
-                                                )
-                                        then
-                                                table.remove(output)
-                                        end
-                                end
-                        end
-                        table.insert(output, line)
-                end
-        end
-
         local efm
         if
                 opts.fargs[1] == "grep"
@@ -97,7 +63,53 @@ function M.compile(opts)
                 end
         end
 
+        local stdout = { "" }
+        local function on_stdout(_, _, data, _)
+                if #data == 0 then return end
+                stdout[#stdout] = stdout[#stdout] .. data[1]
+                for i = 2, #data do
+                        table.insert(stdout, data[i])
+                end
+        end
+
         local function on_exit(term, job, code, _)
+                local output = {}
+                for _, line in ipairs(stdout) do
+                        local skip_line = false
+
+                        if line == "" then skip_line = true end
+                        -- erase in line
+                        if line:match("\x1b%[K") then
+                                line = line:gsub("\x1b%[K", "")
+                                if output[#output] == "" then table.remove(output) end
+                        end
+                        -- line feed
+                        line = line:gsub("\x0d", "")
+                        -- OSC 8 hyperlink
+                        line = line:gsub("\x1b]8;[^\x1b]*\x1b\\", "")
+                        -- ansi
+                        line = line:gsub("\x1b%[[0-9][:;0-9]*m", "")
+
+                        if opts.fargs[1] == "cargo" then
+                                if line:match("^%[.*%] %d+/%d+:") then
+                                        skip_line = true
+                                elseif line:match("Building") then
+                                        skip_line = true
+                                elseif line:match("Compiling") then
+                                        if
+                                                output[#output] == ""
+                                                and not output[#output - 1]:match(
+                                                        "Compilation started at"
+                                                )
+                                        then
+                                                table.remove(output)
+                                        end
+                                end
+                        end
+
+                        if not skip_line then table.insert(output, line) end
+                end
+
                 local exit_title
                 if code >= 128 then
                         local sig
