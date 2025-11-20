@@ -185,7 +185,11 @@ function M.compile(opts)
         end
 
         local compile = Terminal:new({
-                cmd = ("%s %s %s"):format(vim.g.cme_bin, vim.g.cme.shell, vim.g.cme_last_cmd),
+                cmd = ("%s %s '%s'"):format(
+                        vim.g.cme_bin,
+                        vim.g.cme.shell,
+                        vim.g.cme_last_cmd:gsub("'", "'\\''")
+                ),
                 direction = "horizontal",
                 hidden = false,
                 close_on_exit = false,

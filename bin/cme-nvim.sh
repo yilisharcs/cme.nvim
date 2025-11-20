@@ -45,18 +45,4 @@ if [ $# -eq 0 ]; then
         exit 1
 fi
 
-CMD=""
-for arg in "$@"; do
-        if [[ "$arg" == *\"* ]]; then
-                # Has quotes? Escape them
-                safe="${arg//\"/\\\"}"
-                CMD="$CMD \"$safe\""
-        elif [[ "$arg" =~ [[:space:]] ]] || [[ -z "$arg" ]]; then
-                # Has spaces? You know it
-                CMD="$CMD \"$arg\""
-        else
-                # Raw
-                CMD="$CMD $arg"
-        fi
-done
-$CME_SHELL -c "${CMD:1}"
+$CME_SHELL -c "$1"
