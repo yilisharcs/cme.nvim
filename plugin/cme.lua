@@ -36,3 +36,22 @@ vim.api.nvim_create_user_command(
         function(opts) require("cme").compile(opts) end,
         { nargs = "*", bang = true, complete = "shellcmd" }
 )
+
+local augroup = vim.api.nvim_create_augroup("CME", { clear = true })
+
+vim.api.nvim_create_autocmd({ "FileType" }, {
+        desc = "Quickfix prettify",
+        group = augroup,
+        pattern = "qf",
+        callback = function() require("cme.qf").pretty() end,
+})
+
+vim.api.nvim_create_autocmd("CmdlineLeave", {
+        desc = "Quickfix prettify for Cfilter",
+        group = augroup,
+        callback = function()
+                if vim.fn.getcmdline():match("^[CL]filter") then
+                        vim.schedule(function() require("cme.qf").pretty() end)
+                end
+        end,
+})
