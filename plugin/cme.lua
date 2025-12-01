@@ -24,13 +24,6 @@ local DEFAULTS = {
 
 vim.g.cme = vim.tbl_deep_extend("force", DEFAULTS, vim.g.cme or {})
 
-if not vim.g.cme_bin then
-        local plugin = debug.getinfo(1, "S").source:match("@?(.*)")
-        local root = vim.fs.dirname(vim.fs.dirname(plugin))
-        local bin = vim.fs.joinpath(root, "bin/cme-nvim.sh")
-        vim.g.cme_bin = bin
-end
-
 vim.api.nvim_create_user_command(
         "Compile",
         function(opts) require("cme").compile(opts) end,
@@ -39,10 +32,17 @@ vim.api.nvim_create_user_command(
 
 local augroup = vim.api.nvim_create_augroup("CME", { clear = true })
 
-vim.api.nvim_create_autocmd({ "FileType" }, {
+vim.api.nvim_create_autocmd({ "FileType", "User" }, {
         desc = "Quickfix prettify",
         group = augroup,
-        pattern = "qf",
+        pattern = { "qf", "CmeFinished" },
+        callback = function() require("cme.qf").pretty() end,
+})
+
+vim.api.nvim_create_autocmd({ "User" }, {
+        desc = "Quickfix prettify",
+        group = augroup,
+        pattern = "CmeFinished",
         callback = function() require("cme.qf").pretty() end,
 })
 
