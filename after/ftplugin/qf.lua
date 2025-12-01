@@ -12,16 +12,16 @@ vim.api.nvim_set_hl(0, "CmeDuration",    { fg = "#00afff", bold = true, ctermfg 
 vim.api.nvim_set_hl(0, "CmeDirectory",   { link = "CmeDuration" })
 -- stylua: ignore end
 
-local targets = { 0, 2, vim.api.nvim_buf_line_count(0) - 1 }
+local targets = { 0, 1, 2, vim.api.nvim_buf_line_count(0) - 1 }
 
 local rules = {
         ["%d+-%d+-%d+ %d+:%d+:%d+"] = "CmeDateTime",
         ["%d[%d:]*%.%d%d%d"] = "CmeDuration",
         ["finished"] = "CmeExitSuccess",
         ["exited abnormally"] = "CmeExitFailure",
-        ["signal %d+"] = "CmeExitFailure",
-        ["code %d+"] = "CmeExitFailure",
-        ["[~/].*"] = { group = "CmeDirectory", offset = 4 },
+        ["signal %d+"] = { group = "CmeExitFailure", offset = { left = 6 } },
+        ["code %d+"] = { group = "CmeExitFailure", offset = { left = 4 } },
+        ["%s[~/].*"] = { group = "CmeDirectory", offset = { right = 4 } },
 }
 
 for _, row in ipairs(targets) do
@@ -29,11 +29,12 @@ for _, row in ipairs(targets) do
         if text then
                 for pattern, opts in pairs(rules) do
                         local group = type(opts) == "string" and opts or opts.group
-                        local offset = type(opts) == "table" and opts.offset or 0
+                        local left = type(opts) == "table" and opts.offset.left or 0
+                        local right = type(opts) == "table" and opts.offset.right or 0
                         local s, e = text:find(pattern)
                         if s then
-                                vim.api.nvim_buf_set_extmark(0, ns, row, s - 1, {
-                                        end_col = e - offset,
+                                vim.api.nvim_buf_set_extmark(0, ns, row, s - 1 + left, {
+                                        end_col = e - right,
                                         hl_group = group,
                                 })
                         end
