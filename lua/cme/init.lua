@@ -72,48 +72,71 @@ function M.compile(opts)
         local stdout = { "" }
         local function on_stdout(_, _, data, _)
                 if #data == 0 then return end
-                stdout[#stdout] = stdout[#stdout] .. data[1]
+
+                -- Dread "\r\[[K" Destroyer
+                local function append_data(chunk, is_continuation)
+                        if not chunk:find("\r") then
+                                if is_continuation then
+                                        stdout[#stdout] = stdout[#stdout] .. chunk
+                                else
+                                        table.insert(stdout, chunk)
+                                end
+                                return
+                        end
+
+                        local parts = vim.split(chunk, "\r")
+                        if is_continuation then
+                                stdout[#stdout] = stdout[#stdout] .. parts[1]
+                        else
+                                table.insert(stdout, parts[1] .. "\r")
+                        end
+
+                        -- Here lies Erase in Line. You were a valiant fighter.
+                        for i = 2, #parts do
+                                table.insert(stdout, parts[i])
+                        end
+                end
+
+                -- data[1] is always a continuation of the last received line.
+                -- data[2..] meanwhile contains proper new lines.
+                append_data(data[1], true)
                 for i = 2, #data do
-                        table.insert(stdout, data[i])
+                        append_data(data[i], false)
                 end
         end
 
         local function on_exit(term, job, code, _)
                 local output = {}
-                for _, line in ipairs(stdout) do
+                for i, line in ipairs(stdout) do
+                        local raw_line = line
                         local skip_line = false
 
-                        if line == "" then skip_line = true end
-                        -- erase in line
-                        if line:match("\x1b%[K") then
-                                line = line:gsub("\x1b%[K", "")
-                                if output[#output] == "" then table.remove(output) end
-                        end
-                        -- line feed
-                        line = line:gsub("\x0d", "")
-                        -- OSC 8 hyperlink
-                        line = line:gsub("\x1b]8;[^\x1b]*\x1b\\", "")
-                        -- ansi
-                        line = line:gsub("\x1b%[[0-9][:;0-9]*m", "")
+                        local line_feed = "\r"
+                        local erase_in_line = "\x1b%[K"
+                        local osc8_hyperlink = "\x1b]8;[^\x1b]*\x1b\\"
+                        local ansi_colors = "\x1b%[[0-9][:;0-9]*m"
+
+                        line = line --
+                                :gsub(line_feed, "")
+                                :gsub(erase_in_line, "")
+                                :gsub(osc8_hyperlink, "")
+                                :gsub(ansi_colors, "")
 
                         if opts.fargs[1] == "cargo" then
-                                if line:match("^%[.*%] %d+/%d+:") then
-                                        skip_line = true
-                                elseif line:match("Building") then
-                                        skip_line = true
-                                elseif line:match("Compiling") then
-                                        if
-                                                output[#output] == ""
-                                                and not output[#output - 1]:match(
-                                                        "Compilation started at"
-                                                )
-                                        then
-                                                table.remove(output)
-                                        end
-                                end
+                                if line:match("Building %[.*%]") then skip_line = true end
+                                if line:match("Compiling %S* v%d") then skip_line = true end
                         end
 
+                        -- After all this filtering, is the line empty?
+                        if line == "" and raw_line ~= "\r" then skip_line = true end
                         if not skip_line then table.insert(output, line) end
+
+                        -- HACK: The new stdout handler deletes the last empty line.
+                        -- Manually inserting a new one solves the problem well enough.
+                        local line_pad = 5
+                        if i == #stdout and #output ~= line_pad then
+                                table.insert(output, #output, "")
+                        end
                 end
 
                 local exit_title
