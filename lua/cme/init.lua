@@ -214,10 +214,8 @@ function M.compile(opts)
                         table.insert(queue, footer_msg)
                         write_batch(queue)
 
-                        local prefix = obj.code >= 128
-                                        and ("compilation://signal [%d]"):format(
-                                                obj.code == 254 and 2 or obj.code - 128
-                                        )
+                        local prefix = obj.signal ~= 0
+                                        and ("compilation://signal [%d]"):format(obj.signal)
                                 or ("compilation://exit [%d]"):format(obj.code)
 
                         local final_title = prefix
