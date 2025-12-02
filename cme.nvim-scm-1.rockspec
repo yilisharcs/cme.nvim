@@ -32,7 +32,6 @@ description = {
 
 dependencies = {
         "lua == 5.1",
-        "toggleterm.nvim",
 }
 
 test_dependencies = {}
