@@ -17,28 +17,6 @@
 
 local M = {}
 
-local function format_duration(seconds)
-        local ms = math.floor((seconds % 1) * 1000)
-        local s = math.floor(seconds)
-        local m = math.floor(s / 60)
-        local h = math.floor(m / 60)
-        local d = math.floor(h / 24)
-
-        s = s % 60
-        m = m % 60
-        h = h % 24
-
-        if d > 0 then
-                return ("%02d:%02d:%02d:%02d.%03d"):format(d, h, m, s, ms)
-        elseif h > 0 then
-                return ("%02d:%02d:%02d.%03d"):format(h, m, s, ms)
-        elseif m > 0 then
-                return ("%02d:%02d.%03d"):format(m, s, ms)
-        else
-                return ("%d.%03d"):format(s, ms)
-        end
-end
-
 local function argparse(opts)
         if vim.g.cme.shell_expand then
                 for i, arg in ipairs(opts.fargs) do
@@ -204,7 +182,7 @@ function M.compile(opts)
                 vim.schedule(function()
                         local end_ns = vim.uv.hrtime()
                         local delta = (end_ns - start_ns) / 1e9
-                        local duration = format_duration(delta)
+                        local duration = require("cme.duration").into(delta)
 
                         if buffer ~= "" then table.insert(queue, buffer) end
 
