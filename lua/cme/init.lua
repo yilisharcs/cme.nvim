@@ -17,6 +17,28 @@
 
 local M = {}
 
+local function format_duration(seconds)
+        local ms = math.floor((seconds % 1) * 1000)
+        local s = math.floor(seconds)
+        local m = math.floor(s / 60)
+        local h = math.floor(m / 60)
+        local d = math.floor(h / 24)
+
+        s = s % 60
+        m = m % 60
+        h = h % 24
+
+        if d > 0 then
+                return ("%02d:%02d:%02d:%02d.%03d"):format(d, h, m, s, ms)
+        elseif h > 0 then
+                return ("%02d:%02d:%02d.%03d"):format(h, m, s, ms)
+        elseif m > 0 then
+                return ("%02d:%02d.%03d"):format(m, s, ms)
+        else
+                return ("%d.%03d"):format(s, ms)
+        end
+end
+
 local function argparse(opts)
         if vim.g.cme.shell_expand then
                 for i, arg in ipairs(opts.fargs) do
@@ -183,26 +205,27 @@ function M.compile(opts)
         }, function(obj)
                 vim.schedule(function()
                         local end_ns = vim.uv.hrtime()
-                        local duration = (end_ns - start_ns) / 1e9
+                        local delta = (end_ns - start_ns) / 1e9
+                        local duration = format_duration(delta)
 
                         if buffer ~= "" then table.insert(queue, buffer) end
 
                         local end_time = os.date("%Y-%m-%d %H:%M:%S")
                         local footer_msg
                         if obj.code == 0 then
-                                footer_msg = ("Compilation finished at %s, duration %.3f"):format(
+                                footer_msg = ("Compilation finished at %s, duration %s"):format(
                                         end_time,
                                         duration
                                 )
                         elseif obj.code >= 128 then
                                 local signal = (obj.code == 254) and 2 or (obj.code - 128)
-                                footer_msg = ("Compilation exited abnormally with signal %d at %s, duration %.3f"):format(
+                                footer_msg = ("Compilation exited abnormally with signal %d at %s, duration %s"):format(
                                         signal,
                                         end_time,
                                         duration
                                 )
                         else
-                                footer_msg = ("Compilation exited abnormally with code %d at %s, duration %.3f"):format(
+                                footer_msg = ("Compilation exited abnormally with code %d at %s, duration %s"):format(
                                         obj.code,
                                         end_time,
                                         duration
