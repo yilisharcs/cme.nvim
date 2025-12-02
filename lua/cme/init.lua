@@ -40,7 +40,16 @@ local function argparse(opts)
         return opts
 end
 
+vim.g.cme_blocked = false
+
 function M.compile(opts)
+        if vim.g.cme_blocked == true then
+                vim.notify("Wait your turn, bucko!", vim.log.levels.WARN, { title = "cme" })
+                return
+        else
+                vim.g.cme_blocked = true
+        end
+
         opts = argparse(opts)
         if opts == nil then return end
 
@@ -228,6 +237,7 @@ function M.compile(opts)
                                 )
                         end
 
+                        vim.g.cme_blocked = false
                         vim.api.nvim_exec_autocmds("User", {
                                 pattern = "CmeFinished",
                                 data = { code = obj.code, signal = obj.signal },
