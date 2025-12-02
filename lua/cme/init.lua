@@ -40,16 +40,18 @@ local function argparse(opts)
         return opts
 end
 
-function M.compile(opts)
-        if vim.g.cme_blocked == true then
-                vim.notify("Wait your turn, bucko!", vim.log.levels.WARN, { title = "cme" })
-                return
-        else
-                vim.g.cme_blocked = true
-        end
+local active_job = nil
 
+function M.kill_task()
+        if active_job then vim.uv.kill(-active_job.pid, "sigterm") end
+end
+
+function M.compile(opts)
         opts = argparse(opts)
         if opts == nil then return end
+
+        -- Clear old task if any exists
+        M.kill_task()
 
         local efm
         if
@@ -80,8 +82,7 @@ function M.compile(opts)
         local flushing = false
         local counts = { E = 0, W = 0, I = 0 }
 
-        -- Swap and Schedule: required because large outputs can be dropped if the shell tool
-        -- is too fast. TODO: would be kinda nice if I could make this faster.
+        -- Swap and schedule: We want live updates for small payloads and batching for fast tools
         local function write_batch(batch)
                 if not batch or #batch == 0 then return end
 
@@ -173,8 +174,9 @@ function M.compile(opts)
 
         vim.api.nvim_exec_autocmds("User", { pattern = "CmeStarted" })
         local start_ns = vim.uv.hrtime()
-        vim.system(command, {
+        active_job = vim.system(command, {
                 text = true,
+                detach = true,
                 stdout = on_data,
                 stderr = on_data,
                 env = { CME_NVIM = 1 },
@@ -188,21 +190,21 @@ function M.compile(opts)
 
                         local end_time = os.date("%Y-%m-%d %H:%M:%S")
                         local footer_msg
-                        if obj.code == 0 then
-                                footer_msg = ("Compilation finished at %s, duration %s"):format(
+
+                        if obj.signal ~= 0 then
+                                footer_msg = ("Compilation exited abnormally with signal %d at %s, duration %s"):format(
+                                        obj.signal,
                                         end_time,
                                         duration
                                 )
-                        elseif obj.code >= 128 then
-                                local signal = (obj.code == 254) and 2 or (obj.code - 128)
-                                footer_msg = ("Compilation exited abnormally with signal %d at %s, duration %s"):format(
-                                        signal,
+                        elseif obj.code ~= 0 then
+                                footer_msg = ("Compilation exited abnormally with code %d at %s, duration %s"):format(
+                                        obj.code,
                                         end_time,
                                         duration
                                 )
                         else
-                                footer_msg = ("Compilation exited abnormally with code %d at %s, duration %s"):format(
-                                        obj.code,
+                                footer_msg = ("Compilation finished at %s, duration %s"):format(
                                         end_time,
                                         duration
                                 )
@@ -236,11 +238,12 @@ function M.compile(opts)
                                 )
                         end
 
-                        vim.g.cme_blocked = false
                         vim.api.nvim_exec_autocmds("User", {
                                 pattern = "CmeFinished",
                                 data = { code = obj.code, signal = obj.signal },
                         })
+
+                        active_job = nil
                 end)
         end)
 end

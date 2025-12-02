@@ -5,6 +5,9 @@ vim.g.loaded_cme = 1
 ---@tag CME-configuration
 ---@class CME.Config
 ---
+---@field interrupt boolean Enable <C-c> for the quickfix window.
+---     Default: `true`
+---
 ---@field shell string Preferred user shell.
 ---     Default: `vim.o.shell`
 ---
@@ -13,18 +16,18 @@ vim.g.loaded_cme = 1
 ---
 ---@usage >lua
 ---     vim.g.cme = {
+---             interrupt = false,
 ---             shell = "bash",
 ---             shell_expand = false,
 ---     }
 --- <
 local DEFAULTS = {
+        interrupt = true,
         shell = vim.o.shell,
         shell_expand = true,
 }
 
 vim.g.cme = vim.tbl_deep_extend("force", DEFAULTS, vim.g.cme or {})
-
-vim.g.cme_blocked = false
 
 vim.api.nvim_create_user_command(
         "Compile",
