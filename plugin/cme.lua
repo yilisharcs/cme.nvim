@@ -24,6 +24,8 @@ local DEFAULTS = {
 
 vim.g.cme = vim.tbl_deep_extend("force", DEFAULTS, vim.g.cme or {})
 
+vim.g.cme_blocked = false
+
 vim.api.nvim_create_user_command(
         "Compile",
         function(opts) require("cme").compile(opts) end,

@@ -62,8 +62,6 @@ local function argparse(opts)
         return opts
 end
 
-vim.g.cme_blocked = false
-
 function M.compile(opts)
         if vim.g.cme_blocked == true then
                 vim.notify("Wait your turn, bucko!", vim.log.levels.WARN, { title = "cme" })
