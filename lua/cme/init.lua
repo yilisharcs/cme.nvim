@@ -58,18 +58,14 @@ function M.compile(opts)
                 for _, cmd in ipairs(commands) do
                         if
                                 opts.fargs[1] == cmd
-                                or vim.g.cme_last_cmd:match(
-                                        "|%s*" .. vim.pesc(cmd) .. "%f[%W][^|]*$"
-                                )
+                                or opts.args:match("|%s*" .. vim.pesc(cmd) .. "%f[%W][^|]*$")
                         then
                                 -- NOTE: required to match with some cme.efm.rules
                                 if cmd == "find" then
-                                        vim.g.cme_last_cmd = vim.g.cme_last_cmd
-                                                .. " -printf '%p::0\\n'"
+                                        opts.args = opts.args .. " -printf '%p::0\\n'"
                                 elseif cmd == "fd" then
-                                        if not vim.g.cme_last_cmd:match("--format") then
-                                                vim.g.cme_last_cmd = vim.g.cme_last_cmd
-                                                        .. ' --format="{}::0"'
+                                        if not opts.args:match("--format") then
+                                                opts.args = opts.args .. ' --format="{}::0"'
                                         end
                                 end
 
@@ -117,7 +113,7 @@ function M.compile(opts)
                         counts.E,
                         counts.W,
                         counts.I,
-                        vim.g.cme_last_cmd
+                        opts.args
                 )
 
                 vim.fn.setqflist({}, "a", {
@@ -173,7 +169,7 @@ function M.compile(opts)
                 "",
         }
 
-        local title = ("compilation://run [0:0:0] [cmd:%s]"):format(vim.g.cme_last_cmd)
+        local title = ("compilation://run [0:0:0] [cmd:%s]"):format(opts.args)
         vim.fn.setqflist({}, " ", {
                 title = title,
                 efm = efm,
@@ -181,7 +177,7 @@ function M.compile(opts)
         })
         if not opts.bang then vim.cmd.copen() end
 
-        local command = { vim.g.cme.shell, "-c", vim.g.cme_last_cmd }
+        local command = { vim.g.cme.shell, "-c", opts.args }
 
         vim.api.nvim_exec_autocmds("User", { pattern = "CmeStarted" })
         local start_ns = vim.uv.hrtime()
@@ -233,7 +229,7 @@ function M.compile(opts)
                                 .. " "
                                 .. ("[E:%d|W:%d|I:%d]"):format(counts.E, counts.W, counts.I)
                                 .. " "
-                                .. ("[cmd:%s]"):format(vim.g.cme_last_cmd)
+                                .. ("[cmd:%s]"):format(opts.args)
 
                         vim.fn.setqflist({}, "a", {
                                 title = final_title,
@@ -241,7 +237,7 @@ function M.compile(opts)
 
                         if opts.bang then
                                 vim.notify(
-                                        ("Job complete: `%s`"):format(vim.g.cme_last_cmd),
+                                        ("Job complete: `%s`"):format(opts.args),
                                         vim.log.levels.INFO,
                                         { title = "cme" }
                                 )
