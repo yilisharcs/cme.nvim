@@ -5,6 +5,9 @@ vim.g.loaded_cme = 1
 ---@tag CME-configuration
 ---@class CME.Config
 ---
+---@field efm_rules table<string, string[]> Map errorformat to a list of commands.
+---     Default: `require("cme.efm").rules`
+---
 ---@field interrupt boolean Enable <C-c> for the quickfix window.
 ---     Default: `true`
 ---
@@ -16,12 +19,14 @@ vim.g.loaded_cme = 1
 ---
 ---@usage >lua
 ---     vim.g.cme = {
+---             efm_rules = { ["%f::0,%l"] = { "find", "fd" } }
 ---             interrupt = false,
 ---             shell = "bash",
 ---             shell_expand = false,
 ---     }
 --- <
 local DEFAULTS = {
+        efm_rules = require("cme.efm").rules,
         interrupt = true,
         shell = vim.o.shell,
         shell_expand = true,

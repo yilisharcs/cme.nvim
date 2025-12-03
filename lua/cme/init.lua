@@ -54,21 +54,33 @@ function M.compile(opts)
         M.kill_task()
 
         local efm
-        if
-                -- TODO: this could be a table/function
-                opts.fargs[1] == "grep"
-                or opts.args:find("| grep")
-                or opts.fargs[1] == "rg"
-                or opts.args:find("| rg")
-        then
-                efm = vim.o.grepformat
-        elseif
-                opts.fargs[1] == "find"
-                -- NOTE: requires --strip-cwd-prefix=never
-                or opts.fargs[1] == "fd"
-        then
-                efm = "%l,./%f"
-        else
+        for format, commands in pairs(vim.g.cme.efm_rules) do
+                for _, cmd in ipairs(commands) do
+                        if
+                                opts.fargs[1] == cmd
+                                or vim.g.cme_last_cmd:match(
+                                        "|%s*" .. vim.pesc(cmd) .. "%f[%W][^|]*$"
+                                )
+                        then
+                                -- NOTE: required to match with some cme.efm.rules
+                                if cmd == "find" then
+                                        vim.g.cme_last_cmd = vim.g.cme_last_cmd
+                                                .. " -printf '%p::0\\n'"
+                                elseif cmd == "fd" then
+                                        if not vim.g.cme_last_cmd:match("--format") then
+                                                vim.g.cme_last_cmd = vim.g.cme_last_cmd
+                                                        .. ' --format="{}::0"'
+                                        end
+                                end
+
+                                efm = format
+                                break
+                        end
+                end
+                if efm then break end
+        end
+
+        if not efm then
                 local compiler = vim.bo.makeprg:match("%w*")
                 if opts.fargs[1] == compiler then
                         efm = vim.bo.errorformat

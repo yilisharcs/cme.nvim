@@ -13,4 +13,5 @@
 - [x] Look into using extmarks for prettifying the qflist as syntax files are byzantine
 - [ ] Create smart filters for cargo (filter nothing while compiling, filter everything after compiling)
 - [x] Remove toggleterm dependency
-- [ ] Try to leverate the location windows for multiple Compile commands
+- [ ] Try to leverage the location windows for multiple Compile commands
+- [x] Expose option key for errorformats, both default and custom
