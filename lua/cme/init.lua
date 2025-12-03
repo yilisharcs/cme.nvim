@@ -157,7 +157,6 @@ function M.compile(opts)
 
         local header = {
                 ("-*- directory: %s -*-"):format(pretty_cwd),
-                "",
                 ("Compilation started at %s"):format(start_time),
                 "",
         }
