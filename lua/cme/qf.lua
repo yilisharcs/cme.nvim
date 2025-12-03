@@ -1,12 +1,12 @@
 local M = {}
 
-function M.pretty()
-        local win = vim.api.nvim_get_current_win()
-        vim.api.nvim_set_option_value("concealcursor", "nvc", { win = win })
-        vim.api.nvim_set_option_value("conceallevel", 2, { win = win })
+function M.pretty(target_bufnr)
+        local bufnr = target_bufnr or vim.fn.getqflist({ qfbufnr = 0 }).qfbufnr
+        if not bufnr or bufnr == 0 or not vim.api.nvim_buf_is_valid(bufnr) then return end
+
 
         local ns = vim.api.nvim_create_namespace("cme_qf")
-        vim.api.nvim_buf_clear_namespace(0, ns, 0, -1)
+        vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
 
         -- stylua: ignore start
         vim.api.nvim_set_hl(0, "CmeDateTime",    { fg = "#ffaf00", bold = true, ctermfg = "green" })
@@ -16,7 +16,7 @@ function M.pretty()
         vim.api.nvim_set_hl(0, "CmeDirectory",   { link = "CmeDuration" })
         -- stylua: ignore end
 
-        local targets = { 0, 1, 2, vim.api.nvim_buf_line_count(0) - 1 }
+        local targets = { 0, 1, 2, vim.api.nvim_buf_line_count(bufnr) - 1 }
 
         local rules = {
                 ["%d+-%d+-%d+ %d+:%d+:%d+"] = "CmeDateTime",
@@ -29,7 +29,7 @@ function M.pretty()
         }
 
         for _, row in ipairs(targets) do
-                local text = vim.api.nvim_buf_get_lines(0, row, row + 1, false)[1]
+                local text = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1]
                 if text then
                         for pattern, opts in pairs(rules) do
                                 local group = type(opts) == "string" and opts or opts.group
@@ -37,7 +37,7 @@ function M.pretty()
                                 local r = type(opts) == "table" and opts.offset.right or 0
                                 local s, e = text:find(pattern)
                                 if s then
-                                        vim.api.nvim_buf_set_extmark(0, ns, row, s - 1 + l, {
+                                        vim.api.nvim_buf_set_extmark(bufnr, ns, row, s - 1 + l, {
                                                 end_col = e - r,
                                                 hl_group = group,
                                         })
@@ -46,17 +46,17 @@ function M.pretty()
                 end
         end
 
-        local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+        local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
         for i, line in ipairs(lines) do
                 local row = i - 1
                 if line:sub(1, 3) == "|| " then
-                        vim.api.nvim_buf_set_extmark(0, ns, row, 0, {
+                        vim.api.nvim_buf_set_extmark(bufnr, ns, row, 0, {
                                 end_col = 3,
                                 conceal = "",
                         })
                 end
                 if #line > 2 and line:sub(-3) == "|| " then
-                        vim.api.nvim_buf_set_extmark(0, ns, row, #line - 3, {
+                        vim.api.nvim_buf_set_extmark(bufnr, ns, row, #line - 3, {
                                 end_col = #line,
                                 conceal = "",
                         })

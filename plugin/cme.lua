@@ -49,14 +49,13 @@ vim.api.nvim_create_autocmd({ "FileType", "User" }, {
         desc = "Quickfix prettify",
         group = augroup,
         pattern = { "qf", "CmeFinished" },
-        callback = function() require("cme.qf").pretty() end,
-})
-
-vim.api.nvim_create_autocmd({ "User" }, {
-        desc = "Quickfix prettify",
-        group = augroup,
-        pattern = "CmeFinished",
-        callback = function() require("cme.qf").pretty() end,
+        callback = function(data)
+                if data.match == "CmeFinished" then
+                        vim.schedule(function() require("cme.qf").pretty(data.data.bufnr) end)
+                else
+                        require("cme.qf").pretty(data.buf)
+                end
+        end,
 })
 
 vim.api.nvim_create_autocmd("CmdlineLeave", {

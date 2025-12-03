@@ -235,9 +235,11 @@ function M.compile(opts)
                                 )
                         end
 
+                        local qfbufnr = vim.fn.getqflist({ qfbufnr = 0 }).qfbufnr
+
                         vim.api.nvim_exec_autocmds("User", {
                                 pattern = "CmeFinished",
-                                data = { code = obj.code, signal = obj.signal },
+                                data = { code = obj.code, signal = obj.signal, bufnr = qfbufnr },
                         })
 
                         active_job = nil
