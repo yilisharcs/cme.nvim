@@ -150,9 +150,9 @@ function M.compile(opts)
                 end
         end
 
-        local cwd, _ = vim.uv.cwd()
-        if not cwd then cwd = vim.env.HOME or "/" end
-        local pretty_cwd = vim.fn.fnamemodify(cwd, ":~")
+        vim.g.cme_cwd, _ = vim.uv.cwd()
+        if not vim.g.cme_cwd then vim.g.cme_cwd = vim.env.HOME or "/" end
+        local pretty_cwd = vim.fn.fnamemodify(vim.g.cme_cwd, ":~")
         local start_time = os.date("%Y-%m-%d %H:%M:%S")
 
         local header = {
@@ -243,6 +243,28 @@ function M.compile(opts)
                         active_job = nil
                 end)
         end)
+end
+
+vim.g.cme_watch = nil
+
+function M.recompile(opts)
+        if vim.g.cme_watch then vim.api.nvim_del_autocmd(vim.g.cme_watch) end
+        if opts.bang then return end
+
+        local augroup = vim.api.nvim_create_augroup("Cme_Recompile", { clear = true })
+        vim.g.cme_watch = vim.api.nvim_create_autocmd({ "BufWritePost" }, {
+                desc = "Watch for recompilation",
+                group = augroup,
+                callback = function(data)
+                        if not data.match:match(vim.g.cme_cwd) then return end
+
+                        local buf = vim.api.nvim_buf_get_name(0)
+                        if not buf:match(vim.g.cme_cwd) then return end
+
+                        M.compile(opts)
+                end,
+        })
+        M.compile(opts)
 end
 
 return M

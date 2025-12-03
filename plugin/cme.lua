@@ -29,13 +29,21 @@ local DEFAULTS = {
 
 vim.g.cme = vim.tbl_deep_extend("force", DEFAULTS, vim.g.cme or {})
 
-vim.api.nvim_create_user_command(
-        "Compile",
-        function(opts) require("cme").compile(opts) end,
-        { nargs = "*", bang = true, complete = "shellcmd" }
-)
+vim.api.nvim_create_user_command("Compile", function(opts) require("cme").compile(opts) end, {
+        desc = "Populate the quickfix list with the output of shellcmd",
+        nargs = "*",
+        bang = true,
+        complete = "shellcmd",
+})
 
-local augroup = vim.api.nvim_create_augroup("CME", { clear = true })
+vim.api.nvim_create_user_command("Recompile", function(opts) require("cme").recompile(opts) end, {
+        desc = "Run Compile command after saving a file",
+        nargs = "*",
+        bang = true,
+        complete = "shellcmd",
+})
+
+local augroup = vim.api.nvim_create_augroup("Cme", { clear = true })
 
 vim.api.nvim_create_autocmd({ "FileType", "User" }, {
         desc = "Quickfix prettify",

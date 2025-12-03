@@ -2,7 +2,7 @@
 
 - [ ] 1.0 Milestones:
     - [x] Colorize the quickfix list
-    - [ ] Implement `:Recompile` recompile on BufWritePost autocmd
+    - [x] Implement `:Recompile` recompile on BufWritePost autocmd
     - [x] Remove lines with Erase on Line termcode from output
     - [ ] Write better documentation
     - [x] Open `:copen` as soon as the terminal window closes/job is over
