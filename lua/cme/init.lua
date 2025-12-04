@@ -266,10 +266,10 @@ function M.recompile(opts)
                 desc = "Watch for recompilation",
                 group = augroup,
                 callback = function(data)
-                        if not data.match:match(vim.g.cme_cwd) then return end
+                        if not data.match:find(vim.g.cme_cwd, 1, true) then return end
 
                         local buf = vim.api.nvim_buf_get_name(0)
-                        if not buf:match(vim.g.cme_cwd) then return end
+                        if not buf:find(vim.g.cme_cwd, 1, true) then return end
 
                         M.compile(opts)
                 end,
