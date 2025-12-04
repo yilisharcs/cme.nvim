@@ -258,7 +258,7 @@ end
 vim.g.cme_watch = nil
 
 function M.recompile(opts)
-        if vim.g.cme_watch then vim.api.nvim_del_autocmd(vim.g.cme_watch) end
+        if vim.g.cme_watch then pcall(vim.api.nvim_del_autocmd, vim.g.cme_watch) end
         if opts.bang then return end
 
         local augroup = vim.api.nvim_create_augroup("Cme_Recompile", { clear = true })
