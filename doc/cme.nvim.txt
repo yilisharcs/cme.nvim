@@ -10,11 +10,17 @@ Apache License 2.0 Copyright (c) 2025 yilisharcs
 ------------------------------------------------------------------------------
                                                                      *CME-intro*
 
-cme.nvim provides a `:Compile` command that runs tasks in a terminal and loads
-their output into the quickfix list. Arguments are passed to a bash script
-which tracks the command's start time, end time, and duration. If `:Compile` is
-called with no arguments, it executes the last known task. If called with
-`:Compile!`, it won't automatically open the quickfix window on exit.
+cme.nvim provides a `:Compile` command that runs tasks in the background and
+loads their output into the quickfix list on the fly, along with their start
+time, end time, duration, and exit codes. If called with no arguments, the
+last known task is executed. If called as `:Compile!`, it won't automatically
+open the quickfix window on exit.
+
+The `:Recompile` command sets up an autocommand to re-run the provided task (or
+last known) after every write. Note that it doesn't trigger if you move out of
+the directory where it was called, and any new invocation clears the previous
+autocommand. Calling `:Recompile` with no arguments while a watcher is active
+will disable the watcher.
 
 
 ==============================================================================
@@ -25,7 +31,13 @@ Class ~
 {CME.Config}
 
 Fields ~
-{shell} `(string)` Preferred user shell. Accepts any executor that supports -c.
+{efm_rules} `(table<string, string[]>)` Map errorformat to a list of commands.
+    Default: `require("cme.efm").rules`
+
+{interrupt} `(boolean)` Enable <C-c> for the quickfix window.
+    Default: `true`
+
+{shell} `(string)` Preferred user shell.
     Default: `vim.o.shell`
 
 {shell_expand} `(boolean)` Expand '%' to the current file name.
@@ -34,7 +46,9 @@ Fields ~
 Usage ~
 >lua
     vim.g.cme = {
-            shell = "python",
+            efm_rules = { ["%f::0,%l"] = { "find", "fd" } }
+            interrupt = false,
+            shell = "bash",
             shell_expand = false,
     }
 <

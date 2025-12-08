@@ -54,14 +54,15 @@ vim.g.cme = {
 
 cme.nvim provides a `:Compile` command that runs tasks in the background and
 loads their output into the quickfix list on the fly, along with their start
-time, end time, duration, and exit codes. If called with no arguments, the last
-known task is executed. If called as `:Compile!`, it won't automatically open
-the quickfix window.
+time, end time, duration, and exit codes. If called with no arguments, the
+last known task is executed. If called as `:Compile!`, it won't automatically
+open the quickfix window on exit.
 
 The `:Recompile` command sets up an autocommand to re-run the provided task (or
 last known) after every write. Note that it doesn't trigger if you move out of
 the directory where it was called, and any new invocation clears the previous
-autocommand. Calling as `:Recompile!` disables an active autocommand.
+autocommand. Calling `:Recompile` with no arguments while a watcher is active
+will disable the watcher.
 
 ## See also
 

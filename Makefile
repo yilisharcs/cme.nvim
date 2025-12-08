@@ -15,3 +15,6 @@ doc:
 
 doc_watch:
 	@find $(REPO) -name "*.lua" | entr -cs "make doc > /dev/null"
+
+sync:
+	nu scripts/sync.nu
