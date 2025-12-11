@@ -115,7 +115,7 @@ function M.compile(opts)
                         end
                 end
 
-                local batch_title = ("compilation://run [E:%d|W:%d|I:%d] [cmd:%s]"):format(
+                local batch_title = ("compilation://run [E:%d W:%d I:%d] [cmd:%s]"):format(
                         counts.E,
                         counts.W,
                         counts.I,
@@ -233,7 +233,7 @@ function M.compile(opts)
 
                         local final_title = prefix
                                 .. " "
-                                .. ("[E:%d|W:%d|I:%d]"):format(counts.E, counts.W, counts.I)
+                                .. ("[E:%d W:%d I:%d]"):format(counts.E, counts.W, counts.I)
                                 .. " "
                                 .. ("[cmd:%s]"):format(opts.args)
 
