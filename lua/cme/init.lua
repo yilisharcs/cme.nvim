@@ -274,6 +274,7 @@ function M.recompile(opts)
                                 vim.log.levels.INFO,
                                 { title = "cme" }
                         )
+                        vim.cmd("silent cclose")
                         return
                 end
         end
