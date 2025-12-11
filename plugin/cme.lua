@@ -32,7 +32,7 @@ local DEFAULTS = {
         shell_expand = true,
 }
 
-vim.g.cme = vim.tbl_deep_extend("force", DEFAULTS, vim.g.cme or {})
+vim.g.cme = require("cme.utils").tbl_list_concat(DEFAULTS, vim.g.cme or {})
 
 vim.api.nvim_create_user_command("Compile", function(opts) require("cme").compile(opts) end, {
         desc = "Populate the quickfix list with the output of shellcmd",
