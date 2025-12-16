@@ -181,7 +181,10 @@ function M.compile(opts)
                 efm = efm,
                 lines = header,
         })
-        if not opts.bang then vim.cmd.copen() end
+        if not opts.bang then
+                vim.cmd.copen()
+                vim.cmd.wincmd("p")
+        end
 
         local command = { vim.g.cme.shell, "-c", opts.args }
 
