@@ -167,7 +167,10 @@ function M.compile(opts)
         vim.g.cme_cwd, _ = vim.uv.cwd()
         if not vim.g.cme_cwd then vim.g.cme_cwd = vim.env.HOME or "/" end
         local pretty_cwd = vim.fn.fnamemodify(vim.g.cme_cwd, ":~")
-        local start_time = os.date("%Y-%m-%d %H:%M:%S")
+        -- HACK: This is not a colon. This is the "Armenian Full Stop", U+0589.
+        -- Using this prevents the errorformat from incorrectly picking up the
+        -- durations as valid entries.
+        local start_time = os.date("%Y-%m-%d %H։%M։%S")
 
         local header = {
                 ("-*- directory: %s -*-"):format(pretty_cwd),
@@ -204,7 +207,10 @@ function M.compile(opts)
 
                         if buffer ~= "" then table.insert(queue, buffer) end
 
-                        local end_time = os.date("%Y-%m-%d %H:%M:%S")
+                        -- HACK: This is not a colon. This is the "Armenian Full Stop", U+0589.
+                        -- Using this prevents the errorformat from incorrectly picking up the
+                        -- durations as valid entries.
+                        local end_time = os.date("%Y-%m-%d %H։%M։%S")
                         local footer_msg
 
                         if obj.signal ~= 0 then
