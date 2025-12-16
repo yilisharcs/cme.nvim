@@ -175,7 +175,7 @@ function M.compile(opts)
                 "",
         }
 
-        local title = ("compilation://run [0:0:0] [cmd:%s]"):format(opts.args)
+        local title = ("compilation://run [E:0 W:0 I:0] [cmd:%s]"):format(opts.args)
         vim.fn.setqflist({}, " ", {
                 title = title,
                 efm = efm,

@@ -1,9 +1,22 @@
 local M = {}
 
+function M.statusline_expr()
+        local ok, raw = pcall(vim.api.nvim_win_get_var, vim.g.statusline_winid, "quickfix_title")
+
+        -- stylua: ignore
+        local title = (ok and raw) and raw
+                :gsub("%%", "%%%%")
+                :gsub("E:(%d+)", "E:%%#DiagnosticError#%1%%*")
+                :gsub("W:(%d+)", "W:%%#DiagnosticWarn#%1%%*")
+                :gsub("I:(%d+)", "I:%%#DiagnosticInfo#%1%%*")
+                or ""
+
+        return "%t " .. title .. " %=%-15(%l,%c%V%) %P"
+end
+
 function M.pretty(target_bufnr)
         local bufnr = target_bufnr or vim.fn.getqflist({ qfbufnr = 0 }).qfbufnr
         if not bufnr or bufnr == 0 or not vim.api.nvim_buf_is_valid(bufnr) then return end
-
 
         local ns = vim.api.nvim_create_namespace("cme_qf")
         vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)

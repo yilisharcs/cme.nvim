@@ -58,6 +58,7 @@ vim.api.nvim_create_autocmd({ "FileType", "User" }, {
                 if data.match == "CmeFinished" then
                         vim.schedule(function() require("cme.qf").pretty(data.data.bufnr) end)
                 else
+                        vim.wo[0][0].statusline = "%!v:lua.require'cme.qf'.statusline_expr()"
                         require("cme.qf").pretty(data.buf)
                 end
         end,
