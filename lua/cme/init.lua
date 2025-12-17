@@ -59,6 +59,8 @@ function M.compile(opts)
         -- Clear old task if any exists
         M.kill_task()
 
+        local buf_efm = vim.bo.errorformat ~= "" and vim.bo.errorformat or vim.o.errorformat
+
         local efm
         for format, commands in pairs(vim.g.cme.efm_rules) do
                 for _, cmd in ipairs(commands) do
@@ -76,7 +78,7 @@ function M.compile(opts)
                                 end
 
                                 if format == "buffer" then
-                                        efm = vim.bo.errorformat
+                                        efm = buf_efm
                                 else
                                         efm = format
                                 end
@@ -89,7 +91,7 @@ function M.compile(opts)
         if not efm then
                 local compiler = vim.o.makeprg:match("%w*")
                 if opts.fargs[1] == compiler then
-                        efm = vim.bo.errorformat
+                        efm = buf_efm
                 else
                         efm = "%l"
                 end
