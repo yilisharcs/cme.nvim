@@ -83,7 +83,7 @@ function M.compile(opts)
         end
 
         if not efm then
-                local compiler = vim.bo.makeprg:match("%w*")
+                local compiler = vim.o.makeprg:match("%w*")
                 if opts.fargs[1] == compiler then
                         efm = vim.bo.errorformat
                 else
