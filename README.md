@@ -41,6 +41,12 @@ Below are the available options and their default values:
 
 ```lua
 vim.g.cme = {
+    -- Custom key-value list of errorformats and programs
+    efm_rules = {
+        -- "buffer" is a special key which resolves to `vim.bo.errorformat`
+        ["buffer"] = { "mask" }
+        ["%f::0,%l"] = { "find", "fd" }
+    },
     -- Enable <C-c> for the quickfix window.
     interrupt = true,
     -- Preferred user shell. Accepts any executor that supports -c.

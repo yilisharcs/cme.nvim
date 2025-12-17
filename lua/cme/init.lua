@@ -75,7 +75,11 @@ function M.compile(opts)
                                         end
                                 end
 
-                                efm = format
+                                if format == "buffer" then
+                                        efm = vim.bo.errorformat
+                                else
+                                        efm = format
+                                end
                                 break
                         end
                 end
