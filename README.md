@@ -10,12 +10,7 @@ Using Neovim's built-in package manager:
 
 ```lua
 vim.pack.add({
-    {
-        src = "https://github.com/yilisharcs/cme.nvim",
-    },
-    {
-        src = "https://github.com/akinsho/toggleterm.nvim",
-    },
+    "https://github.com/yilisharcs/cme.nvim",
 })
 ```
 
