@@ -299,6 +299,12 @@ function M.recompile(opts)
                 desc = "Watch for recompilation",
                 group = augroup,
                 callback = function(data)
+                        local blacklist = {
+                                "COMMIT_EDITMSG",
+                                "git-rebase-todo",
+                        }
+                        if vim.tbl_contains(blacklist, vim.fn.expand("%:t")) then return end
+
                         if not data.match:find(vim.g.cme_cwd, 1, true) then return end
 
                         local buf = vim.api.nvim_buf_get_name(0)
