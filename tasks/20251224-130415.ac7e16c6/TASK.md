@@ -1,5 +1,5 @@
 ---
-status: OPEN
+status: CLOSED
 priority: 10
 tags: [bug]
 ---

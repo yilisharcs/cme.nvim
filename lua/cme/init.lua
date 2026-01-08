@@ -146,6 +146,7 @@ function M.compile(opts)
                 if not data then return end
 
                 local chunk = buffer .. data
+                chunk = chunk:gsub("\r", "")
                 local lines = vim.split(chunk, "\n", { plain = true, trimempty = false })
 
                 -- Discard buffer residue
