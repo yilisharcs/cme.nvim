@@ -147,6 +147,7 @@ function M.compile(opts)
 
                 local chunk = buffer .. data
                 chunk = chunk:gsub("\r\n", "\n"):gsub("\r", "\n") -- Clean literal ^M chars
+                chunk = chunk:gsub("\x1b%[[:;%d]*m", "") -- Strip ANSI color sequences
                 local lines = vim.split(chunk, "\n", { plain = true, trimempty = false })
 
                 -- Discard buffer residue

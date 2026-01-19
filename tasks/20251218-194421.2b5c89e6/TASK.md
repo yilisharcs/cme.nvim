@@ -1,5 +1,5 @@
 ---
-status: OPEN
+status: CLOSED
 priority: 50
 tags: [bug, termcodes]
 ---
