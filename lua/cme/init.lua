@@ -201,7 +201,10 @@ function M.compile(opts)
 
         vim.api.nvim_exec_autocmds("User", { pattern = "CmeStarted" })
         local start_ns = vim.uv.hrtime()
-        active_job = vim.system(command, {
+
+        -- We kinda don't want to lose track of our job id, in case we kill it
+        local current_job
+        current_job = vim.system(command, {
                 text = true,
                 detach = true,
                 stdout = on_data,
@@ -209,6 +212,8 @@ function M.compile(opts)
                 env = { CME_NVIM = 1 },
         }, function(obj)
                 vim.schedule(function()
+                        if active_job ~= current_job then return end
+
                         local end_ns = vim.uv.hrtime()
                         local delta = (end_ns - start_ns) / 1e9
                         local duration = require("cme.duration").into(delta)
@@ -276,6 +281,7 @@ function M.compile(opts)
                         active_job = nil
                 end)
         end)
+        active_job = current_job
 end
 
 vim.g.cme_watch = nil
