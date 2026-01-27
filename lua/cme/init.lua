@@ -109,10 +109,14 @@ function M.compile(opts)
         opts = argparse(opts)
         if opts == nil then return end
 
-        local sudo_stdin = false
+        local sudo = {
+                stdin = false,
+                needs_pretty = false,
+        }
+
         -- Check if sudo is the first command... and nothing else.
         if vim.g.cme.sudo_prompt and opts.fargs[1] == "sudo" then
-                sudo_stdin = true
+                sudo.stdin = true
                 if
                         not opts.args:find("-S", 1, true) -- User did not already tell to use stdin
                         and not opts.args:find("-A", 1, true) -- User did not tell to use askpass
@@ -194,6 +198,11 @@ function M.compile(opts)
                         title = batch_title,
                         items = parsed_items,
                 })
+
+                -- The sudo prompt breaks the coloring slightly. Forcing the pretty function on a
+                -- small scale doesn't appear to downgrade performance. Add a check nonetheless.
+                if sudo.stdin and not sudo.needs_pretty then require("cme.qf").pretty() end
+
                 vim.cmd("cbottom")
         end
 
@@ -220,6 +229,8 @@ function M.compile(opts)
                                         current_job:write(secret .. "\n")
                                         current_job:write(nil) -- Close pipe to prevent hang
                                 end
+
+                                vim.defer_fn(function() sudo.needs_pretty = true end, 500)
                         end)
                         -- Don't show the prompt in the output else you're prompted twice
                         chunk = chunk:gsub(
@@ -286,7 +297,7 @@ function M.compile(opts)
         current_job = vim.system(command, {
                 text = true,
                 detach = true,
-                stdin = sudo_stdin or nil,
+                stdin = sudo.stdin or nil,
                 stdout = on_data,
                 stderr = on_data,
                 env = { CME_NVIM = 1 },
