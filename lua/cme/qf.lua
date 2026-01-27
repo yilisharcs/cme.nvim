@@ -32,8 +32,8 @@ function M.pretty(target_bufnr)
         local targets = { 0, 1, 2, vim.api.nvim_buf_line_count(bufnr) - 1 }
 
         local rules = {
-                ["%d+-%d+-%d+ %d+:%d+:%d+"] = "CmeDateTime",
-                ["%d[%d:]*%.%d%d%d"] = "CmeDuration",
+                ["%d+-%d+-%d+ %d+։%d+։%d+"] = "CmeDateTime",
+                ["%d[%d։]*%.%d%d%d"] = "CmeDuration",
                 ["finished"] = "CmeExitSuccess",
                 ["exited abnormally"] = "CmeExitFailure",
                 ["signal %d+"] = { group = "CmeExitFailure", offset = { left = 6 } },
