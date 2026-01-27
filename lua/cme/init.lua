@@ -23,6 +23,54 @@
 
 local M = {}
 
+local function check_cmd(fargs, target_cmd)
+        local candidate = nil
+        local expect_cmd = true
+        local separators = {
+                "&&", -- AND
+                ";", -- next
+                "||", -- OR
+                "|", -- the based unix pipe
+        }
+        local quote_char = nil
+
+        for _, arg in ipairs(fargs) do
+                -- A command like `:Compile rg --vimgrep -F "foo || bar" will mistakenly read the
+                -- double bars as a shell separator if we don't keep track of the quotes. Naively,
+                -- I used `vim.tbl_contains` without such safeguards; now I know better...
+                local in_quotes = not quote_char and arg:match([=[^['"]]=])
+                if in_quotes then quote_char = arg:sub(1, 1) end
+
+                if not quote_char or in_quotes then
+                        if
+                                not quote_char
+                                -- Who in their right mind types "foo ; bar"? Needs check `foo; bar`
+                                and (vim.tbl_contains(separators, arg) or arg:sub(-1) == ";")
+                        then
+                                candidate = nil
+                                expect_cmd = true
+                        elseif expect_cmd then
+                                candidate = arg
+                                expect_cmd = false
+                        end
+                end
+
+                -- Quote not escaped? Good.
+                if quote_char and arg:sub(-1) == quote_char and arg:sub(-2, -2) ~= "\\" then
+                        quote_char = nil
+                end
+        end
+
+        if candidate then
+                -- Strip 'em quotes
+                candidate = candidate:gsub([=[^['"]]=], ""):gsub([=[['"]$]=], "")
+                -- Handle paths (/usr/bin/make -> make)
+                if candidate:find("/") then candidate = vim.fn.fnamemodify(candidate, ":t") end
+        end
+
+        return candidate == target_cmd
+end
+
 local function argparse(opts)
         if vim.g.cme.shell_expand then
                 for i, arg in ipairs(opts.fargs) do
@@ -64,10 +112,7 @@ function M.compile(opts)
         local efm
         for format, commands in pairs(vim.g.cme.efm_rules) do
                 for _, cmd in ipairs(commands) do
-                        if
-                                opts.fargs[1] == cmd
-                                or opts.args:match("|%s*" .. vim.pesc(cmd) .. "%f[%W][^|]*$")
-                        then
+                        if check_cmd(opts.fargs, cmd) then
                                 -- NOTE: required to match with some cme.efm.rules
                                 if cmd == "find" then
                                         opts.args = opts.args .. " -printf '%p::0\\n'"
@@ -90,7 +135,7 @@ function M.compile(opts)
 
         if not efm then
                 local compiler = vim.o.makeprg:match("%w*")
-                if opts.fargs[1] == compiler then
+                if check_cmd(opts.fargs, compiler) then
                         efm = buf_efm
                 else
                         efm = "%l"
