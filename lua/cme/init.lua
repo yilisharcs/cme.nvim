@@ -221,8 +221,11 @@ function M.compile(opts)
                                         current_job:write(nil) -- Close pipe to prevent hang
                                 end
                         end)
-                        -- Don't show the prompt in the output
-                        chunk = chunk:gsub("cme%-password:", "")
+                        -- Don't show the prompt in the output else you're prompted twice
+                        chunk = chunk:gsub(
+                                "cme%-password:",
+                                ("[sudo] password for %s:"):format(vim.uv.os_getenv("USER"))
+                        )
                 end
 
                 local lines = vim.split(chunk, "\n", { plain = true, trimempty = false })
