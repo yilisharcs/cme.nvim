@@ -17,12 +17,25 @@ vim.g.loaded_cme = 1
 ---@field shell_expand boolean Expand '%' to the current file name.
 ---     Default: `true`
 ---
+---@field sudo_prompt boolean Enable password prompt for one sudo command.
+---     Default: `false`
+---
+---     WARNING: `sudo -S` inherits an open stdin pipe which alters the behavior
+---     of programs like ripgrep, so they appear to fail immediately. I lack an
+---     exhaustive list of all the tools affected by this, so use with caution.
+---
+---     Specifically for ripgrep, the fix is provided in its manpage:
+---
+---         To turn off stdin detection, one can explicitly specify the
+---         directory to search, e.g. `rg foo ./`.
+---
 ---@usage >lua
 ---     vim.g.cme = {
 ---             efm_rules = { ["%f::0,%l"] = { "find", "fd" } }
 ---             interrupt = false,
 ---             shell = "bash",
 ---             shell_expand = false,
+---             sudo_prompt = true,
 ---     }
 --- <
 local DEFAULTS = {
@@ -30,6 +43,7 @@ local DEFAULTS = {
         interrupt = true,
         shell = vim.o.shell,
         shell_expand = true,
+        sudo_prompt = false,
 }
 
 vim.g.cme = require("cme.utils").tbl_list_concat(DEFAULTS, vim.g.cme or {})

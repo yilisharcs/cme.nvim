@@ -51,7 +51,12 @@ local function check_cmd(fargs, target_cmd)
                                 expect_cmd = true
                         elseif expect_cmd then
                                 candidate = arg
-                                expect_cmd = false
+                                -- Very simple sudo support. Doesn't work with sudo flags, sorry.
+                                if arg == "sudo" and target_cmd ~= "sudo" then
+                                        expect_cmd = true
+                                else
+                                        expect_cmd = false
+                                end
                         end
                 end
 
@@ -103,6 +108,18 @@ end
 function M.compile(opts)
         opts = argparse(opts)
         if opts == nil then return end
+
+        local sudo_stdin = false
+        -- Check if sudo is the first command... and nothing else.
+        if vim.g.cme.sudo_prompt and opts.fargs[1] == "sudo" then
+                sudo_stdin = true
+                if
+                        not opts.args:find("-S", 1, true) -- User did not already tell to use stdin
+                        and not opts.args:find("-A", 1, true) -- User did not tell to use askpass
+                then
+                        opts.args = opts.args:gsub("^sudo", "sudo -S -p 'cme-password:'", 1)
+                end
+        end
 
         -- Clear old task if any exists
         M.kill_task()
@@ -187,12 +204,27 @@ function M.compile(opts)
                 if #batch > 0 then write_batch(batch) end
         end
 
+        local current_job -- Forward declaration
         local function on_data(_, data)
                 if not data then return end
 
                 local chunk = buffer .. data
                 chunk = chunk:gsub("\r\n", "\n"):gsub("\r", "\n") -- Clean literal ^M chars
                 chunk = chunk:gsub("\x1b%[[:;%d]*m", "") -- Strip ANSI color sequences
+
+                -- Handle password prompt
+                if vim.g.cme.sudo_prompt and chunk:match("cme%-password:") then
+                        vim.schedule(function()
+                                local secret = vim.fn.inputsecret("Password: ")
+                                if secret ~= "" and current_job then
+                                        current_job:write(secret .. "\n")
+                                        current_job:write(nil) -- Close pipe to prevent hang
+                                end
+                        end)
+                        -- Don't show the prompt in the output
+                        chunk = chunk:gsub("cme%-password:", "")
+                end
+
                 local lines = vim.split(chunk, "\n", { plain = true, trimempty = false })
 
                 -- Discard buffer residue
@@ -248,10 +280,10 @@ function M.compile(opts)
         local start_ns = vim.uv.hrtime()
 
         -- We kinda don't want to lose track of our job id, in case we kill it
-        local current_job
         current_job = vim.system(command, {
                 text = true,
                 detach = true,
+                stdin = sudo_stdin or nil,
                 stdout = on_data,
                 stderr = on_data,
                 env = { CME_NVIM = 1 },
