@@ -48,6 +48,8 @@ vim.g.cme = {
     shell = vim.o.shell,
     -- Expand wildcard characters.
     shell_expand = true,
+    -- Enable password prompt for one sudo command.
+    sudo_prompt = false,
 }
 ```
 
