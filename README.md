@@ -46,7 +46,7 @@ vim.g.cme = {
     interrupt = true,
     -- Preferred user shell. Accepts any executor that supports -c.
     shell = vim.o.shell,
-    -- Expand '%' to the current file name.
+    -- Expand wildcard characters.
     shell_expand = true,
 }
 ```

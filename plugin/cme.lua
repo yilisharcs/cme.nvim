@@ -14,7 +14,7 @@ vim.g.loaded_cme = 1
 ---@field shell string Preferred user shell.
 ---     Default: `vim.o.shell`
 ---
----@field shell_expand boolean Expand '%' to the current file name.
+---@field shell_expand boolean Expand wildcard characters.
 ---     Default: `true`
 ---
 ---@field sudo_prompt boolean Enable password prompt for one sudo command.
