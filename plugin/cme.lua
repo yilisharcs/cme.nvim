@@ -17,6 +17,9 @@ vim.g.loaded_cme = 1
 ---@field shell_expand boolean Expand wildcard characters.
 ---     Default: `true`
 ---
+---@field shell_flags string[] Extra flags to pass to the shell.
+---     Default: `{}`
+---
 ---@field sudo_prompt boolean Enable password prompt for one sudo command.
 ---     Default: `false`
 ---
@@ -43,6 +46,7 @@ local DEFAULTS = {
         interrupt = true,
         shell = vim.o.shell,
         shell_expand = true,
+        shell_flags = {},
         sudo_prompt = false,
 }
 

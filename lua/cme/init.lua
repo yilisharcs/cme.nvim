@@ -288,7 +288,14 @@ function M.compile(opts)
                 vim.cmd.wincmd("p")
         end
 
-        local command = { vim.g.cme.shell, "-c", opts.args }
+        local command = vim.iter({
+                vim.g.cme.shell,
+                vim.g.cme.shell_flags or {},
+                "-c",
+                opts.args,
+        })
+                :flatten()
+                :totable()
 
         vim.api.nvim_exec_autocmds("User", { pattern = "CmeStarted" })
         local start_ns = vim.uv.hrtime()
