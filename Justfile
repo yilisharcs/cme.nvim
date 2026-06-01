@@ -4,6 +4,9 @@ set script-interpreter  := ["nu"]       # for bundled execution
 doc:
         nvim --clean --headless -l scripts/doc.lua
 
+repro:
+        nvim --clean -u scripts/repro.lua
+
 check: lint format
 
 [script]
