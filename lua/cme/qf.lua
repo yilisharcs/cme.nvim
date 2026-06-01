@@ -6,6 +6,10 @@ function M.statusline_expr()
         -- stylua: ignore
         local title = (ok and raw) and raw
                 :gsub("%%", "%%%%")
+                :gsub("%[(%d+)%]", function(code)
+                        local hl = (code == "0") and "%#DiagnosticOk#" or "%#DiagnosticError#"
+                        return "[" .. hl .. code .. "%*]"
+                end)
                 :gsub("E:(%d+)", "E:%%#DiagnosticError#%1%%*")
                 :gsub("W:(%d+)", "W:%%#DiagnosticWarn#%1%%*")
                 :gsub("I:(%d+)", "I:%%#DiagnosticInfo#%1%%*")
@@ -16,7 +20,9 @@ end
 
 function M.pretty(target_bufnr)
         local bufnr = target_bufnr or vim.fn.getqflist({ qfbufnr = 0 }).qfbufnr
-        if not bufnr or bufnr == 0 or not vim.api.nvim_buf_is_valid(bufnr) then return end
+        if not bufnr or bufnr == 0 or not vim.api.nvim_buf_is_valid(bufnr) then
+                return
+        end
 
         local ns = vim.api.nvim_create_namespace("cme_qf")
         vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
@@ -35,6 +41,7 @@ function M.pretty(target_bufnr)
                 ["%d+-%d+-%d+ %d+։%d+։%d+"] = "CmeDateTime",
                 ["%d[%d։]*%.%d%d%d"] = "CmeDuration",
                 ["finished"] = "CmeExitSuccess",
+                ["killed"] = "CmeExitFailure",
                 ["exited abnormally"] = "CmeExitFailure",
                 ["signal %d+"] = { group = "CmeExitFailure", offset = { left = 6 } },
                 ["code %d+"] = { group = "CmeExitFailure", offset = { left = 4 } },
@@ -43,22 +50,21 @@ function M.pretty(target_bufnr)
 
         for _, row in ipairs(targets) do
                 local text = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1]
-                if text then
-                        for pattern, opts in pairs(rules) do
-                                local group = type(opts) == "string" and opts or opts.group
-                                local l = type(opts) == "table" and opts.offset.left or 0
-                                local r = type(opts) == "table" and opts.offset.right or 0
-                                local s, e = text:find(pattern)
-                                if s then
-                                        vim.api.nvim_buf_set_extmark(bufnr, ns, row, s - 1 + l, {
-                                                end_col = e - r,
-                                                hl_group = group,
-                                        })
-                                end
+                for pattern, opts in pairs(text and rules or {}) do
+                        local group = type(opts) == "string" and opts or opts.group
+                        local l = type(opts) == "table" and opts.offset.left or 0
+                        local r = type(opts) == "table" and opts.offset.right or 0
+                        local s, e = text:find(pattern)
+                        if s then
+                                vim.api.nvim_buf_set_extmark(bufnr, ns, row, s - 1 + l, {
+                                        end_col = e - r,
+                                        hl_group = group,
+                                })
                         end
                 end
         end
 
+        -- TODO: potential perf upgrade?
         local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
         for i, line in ipairs(lines) do
                 local row = i - 1

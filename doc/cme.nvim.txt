@@ -1,72 +1,222 @@
 *cme.nvim.txt*                                    Compilation Mode, not in Emacs
 
-Apache License 2.0 Copyright (c) 2025 yilisharcs
+Apache License 2.0 Copyright (c) 2025-2026 yilisharcs
 
 ------------------------------------------------------------------------------
                               Table of Contents
 
-  INTRODUCTION ................................................... |CME-intro|
+  INTRODUCTION ......................................................... |CME|
   CONFIGURATION .......................................... |CME-configuration|
+  PLUGIN API ....................................................... |CME-api|
+  TROUBLESHOOTING ...................................... |CME-troubleshooting|
+  SIMILAR PLUGINS ...................................... |CME-similar-plugins|
 ------------------------------------------------------------------------------
+                                                                           *CME*
                                                                      *CME-intro*
 
-cme.nvim provides a `:Compile` command that runs tasks in the background and
-loads their output into the quickfix list on the fly, along with their start
-time, end time, duration, and exit codes. If called with no arguments, the
-last known task is executed. If called as `:Compile!`, it won't automatically
-open the quickfix window on exit.
+*cme.nvim* is a minimalistic task runner inspired by Emacs' compilation-mode.
+It runs jobs asynchronously, streaming their output into the |quickfix| list in
+real time, and populates the statusline with metadata like their start time,
+end time, duration, exit codes, and their error-warning-info counter.
 
-The `:Recompile` command sets up an autocommand to re-run the provided task (or
-last known) after every write. Note that it doesn't trigger if you move out of
-the directory where it was called, and any new invocation clears the previous
-autocommand. Calling `:Recompile` with no arguments while a watcher is active
-will disable the watcher.
+# Design ~
 
+I watch Tsoding. He uses Emacs. I don't use Emacs (and I don't plan to either)
+but I like what Emacs has to offer. Existing plugins were either hard to wrap
+my head around or not obviously extensible, so I made this. Initially, it was
+meant to torture the |quickfix| list into acting like an interactive terminal so
+as to replace my usage of toggleterm.nvim, which didn't work out too well thus
+far (but I haven't given up, trust!). My goal is to leverage existing features
+and integrate with native Nvim instead of reinventing the wheel.
 
-==============================================================================
+What this plugin doesn't do (yet):
+    - Support `sudo`
+    - Interactive input
+    - Process high outputs without stutter
+
+# Commands ~
+
+                                                     *:MXCompile*
+:MXCompile[!] {cmd}     Execute {cmd} in the background. If called with no
+                        arguments, the last known command is re-run.
+                        If called as `:MXCompile!`, it won't automatically
+                        open the quickfix window on completion.
+
+                                                     *:MXRecompile*
+:MXRecompile[!] {cmd}   Setup a watcher to re-run {cmd} on every buffer save.
+                        Calling with no arguments while a watcher is active
+                        disables it.
+                        If called as `:MXRecompile!`, it won't automatically
+                        open the quickfix window on completion.
+
+                                                     *:MXKill*
+:MXKill                 Immediately terminate the active background task.
+
+# Setup ~
+
+This plugin works out of the box via 'runtimepath'. It can be configured with
+`vim.g.cme` before the plugin is loaded, and provides a global Lua table for
+scripting. Call `CME.setup()` to refresh all internal side-effects.
+
+See |CME-configuration| for `config` structure and default values.
+
+# Tips ~
+
+Leverage built-in |quickfix| features to improve your workflow:
+- Jump between errors with |:cprev| and |:cnext|.
+- Operate on the quickfix list with |:cdo| and |:cfdo|.
+- Filter results with |:Cfilter|.
+- Cycle through previous build results with |:colder| and |:cnewer|.
+
 ------------------------------------------------------------------------------
                                                              *CME-configuration*
-                                   `DEFAULTS`
 Class ~
-{CME.Config}
+{cme.Config}
 
 Fields ~
-{efm_rules} `(table<string, string[]>)` Map errorformat to a list of commands.
-    Default: `require("cme.efm").rules`
-
-{interrupt} `(boolean)` Enable <C-c> for the quickfix window.
-    Default: `true`
-
 {shell} `(string)` Preferred user shell.
     Default: `vim.o.shell`
-
-{shell_expand} `(boolean)` Expand wildcard characters.
-    Default: `true`
 
 {shell_flags} `(string[])` Extra flags to pass to the shell.
     Default: `{}`
 
-{sudo_prompt} `(boolean)` Enable password prompt for one sudo command.
-    Default: `false`
+{shell_expand} `(boolean)` Expand wildcard characters.
+    Default: `true`
 
-    WARNING: `sudo -S` inherits an open stdin pipe which alters the behavior
-    of programs like ripgrep, so they appear to fail immediately. I lack an
-    exhaustive list of all the tools affected by this, so use with caution.
+{interrupt} `(boolean)` Enable SIGTERM <C-c> for the quickfix window.
+    Default: `true`
 
-    Specifically for ripgrep, the fix is provided in its manpage:
+{efm_rules} `(table<string, string[]>)` Map errorformat to a list of commands.
+    Default:
+>lua
+    {
+            [vim.o.grepformat] = { "grep", "rg" },
+            ["%f::0,%l"] = { "find", "fd" },
+    }
+<
 
-        To turn off stdin detection, one can explicitly specify the
-        directory to search, e.g. `rg foo ./`.
+{modifiers} `(table<string, string|function>)` Command mutation rules.
+    Hooks used to normalize shell tool output for the |quickfix| list.
+    Strings are appended; functions receive the full command and return its
+    replacement. This occurs after expansion but before shell invocation.
+
+    Default:
+>lua
+    {
+            -- Appends flags to ensure output matches the efm above
+            find = "-printf '%p::0\\n'",
+
+            -- Conditional: only appends flags if user omitted them
+            -- Whitespace prefix on the return value is handled here
+            fd = function(cmd)
+                    if not cmd:match("--format") then
+                            return cmd .. ' --format="{}::0"'
+                    else
+                            return cmd
+                    end
+            end,
+    }
+<
 
 Usage ~
 >lua
+    ---@type cme.Opts
     vim.g.cme = {
-            efm_rules = { ["%f::0,%l"] = { "find", "fd" } }
-            interrupt = false,
-            shell = "bash",
+            shell = "nu",
+            shell_flags = { "-m", "psql" },
             shell_expand = false,
-            sudo_prompt = true,
+            interrupt = false,
+            efm_rules = {
+                    ["buffer"] = { "just" },
+            },
+            modifiers = {
+                    ls = "-la",
+            },
     }
 <
+------------------------------------------------------------------------------
+                                                                    *CME.config*
+                                  `CME.config`
+Type ~
+`(cme.Config)`
+
+------------------------------------------------------------------------------
+                                                                   *CME.setup()*
+                             `CME.setup`({config})
+Module setup.
+
+Merges the provided {config} OR `vim.g.cme` with the defaults to establish the
+active state. This function initializes |autocommand|s, |user-commands|, and
+|mapping|s. Can be called multiple times to reload settings.
+
+Parameters ~
+{config} `(cme.Opts?)` Optional overrides.
+
+------------------------------------------------------------------------------
+                                                                       *CME-api*
+                                                                       *CME-API*
+
+Public module functions for Compilation Mode, not in Emacs :)
+
+------------------------------------------------------------------------------
+                                                                 *CME.compile()*
+                             `CME.compile`({opts})
+Run compilation.
+
+Internally executes the provided command (or last known) in the background
+and populates the quickfix list. If {opts.bang} is true, it suppresses the
+automatic opening of the quickfix window.
+
+Parameters ~
+{opts} `({ args: string?, bang: boolean? }?)` Command options.
+
+------------------------------------------------------------------------------
+                                                               *CME.recompile()*
+                            `CME.recompile`({opts})
+Toggle recompile watcher.
+
+Sets up or tears down an autocommand to run compilation on buffer save.
+Calling with no arguments while a watcher is active disables it.
+
+Parameters ~
+{opts} `({ args: string?, bang: boolean? }?)` Command options.
+
+------------------------------------------------------------------------------
+                                                                    *CME.kill()*
+                            `CME.kill`({update_qf})
+Kill active compilation job.
+
+Sends a SIGTERM to the process group of the currently active job.
+
+Parameters ~
+{update_qf} `(boolean?)` Whether to update the quickfix list with a termination
+    message.
+
+------------------------------------------------------------------------------
+                                                           *CME-troubleshooting*
+
+If you encounter issues, please follow these steps:
+
+Run |:checkhealth| `cme` to verify your environment, Nvim version, and
+database accessibility.
+
+Use the provided minimal reproduction script to isolate the issue from your
+personal configuration:
+>bash
+    just repro
+<
+Alternatively, run it directly with Neovim:
+>bash
+    nvim --clean -u scripts/repro.lua
+<
+If the issue persists in the minimal environment, please report it at:
+    https://codeberg.org/yilisharcs/cme.nvim/issues
+
+------------------------------------------------------------------------------
+                                                           *CME-similar-plugins*
+
+- [tpope-vim-dispatch](https://github.com/tpope/vim-dispatch)
+- [ej-shafran/compile-mode.nvim](https://github.com/ej-shafran/compile-mode.nvim)
+
 
  vim:tw=78:ts=8:noet:ft=help:norl:

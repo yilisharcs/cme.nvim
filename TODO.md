@@ -7,10 +7,12 @@
     - [ ] Write better documentation
     - [x] Open `:copen` as soon as the terminal window closes/job is over
     - [x] Parse the quickfix list to get the proper number of errors for the qftitle
-- [x] Is it possible to set the quickfix list without blocking the editor with massive inputs?
+    - [ ] process massive outputs from ripgrep or fd without stuttering or blocking
 - [ ] Add tmux as an option to pass through commands for persistence
 - [x] Add errorformat for find, fd
 - [x] Look into using extmarks for prettifying the qflist as syntax files are byzantine
 - [x] Remove toggleterm dependency
 - [ ] Try to leverage the location windows for multiple Compile commands
 - [x] Expose option key for errorformats, both default and custom
+- [x] shellescape!!
+- [ ] make sudo work again

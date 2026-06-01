@@ -1,260 +1,264 @@
 --- *cme.nvim.txt*                                    Compilation Mode, not in Emacs
 ---
---- Apache License 2.0 Copyright (c) 2025 yilisharcs
+--- Apache License 2.0 Copyright (c) 2025-2026 yilisharcs
 
 ---                               Table of Contents
 ---
 ---@toc
 
 ---@toc_entry INTRODUCTION
+---@tag CME
 ---@tag CME-intro
 ---@text
---- cme.nvim provides a `:Compile` command that runs tasks in the background and
---- loads their output into the quickfix list on the fly, along with their start
---- time, end time, duration, and exit codes. If called with no arguments, the
---- last known task is executed. If called as `:Compile!`, it won't automatically
---- open the quickfix window on exit.
+--- *cme.nvim* is a minimalistic task runner inspired by Emacs' compilation-mode.
+--- It runs jobs asynchronously, streaming their output into the |quickfix| list in
+--- real time, and populates the statusline with metadata like their start time,
+--- end time, duration, exit codes, and their error-warning-info counter.
 ---
---- The `:Recompile` command sets up an autocommand to re-run the provided task (or
---- last known) after every write. Note that it doesn't trigger if you move out of
---- the directory where it was called, and any new invocation clears the previous
---- autocommand. Calling `:Recompile` with no arguments while a watcher is active
---- will disable the watcher.
+--- # Design ~
+---
+--- I watch Tsoding. He uses Emacs. I don't use Emacs (and I don't plan to either)
+--- but I like what Emacs has to offer. Existing plugins were either hard to wrap
+--- my head around or not obviously extensible, so I made this. Initially, it was
+--- meant to torture the |quickfix| list into acting like an interactive terminal so
+--- as to replace my usage of toggleterm.nvim, which didn't work out too well thus
+--- far (but I haven't given up, trust!). My goal is to leverage existing features
+--- and integrate with native Nvim instead of reinventing the wheel.
+---
+--- What this plugin doesn't do (yet):
+---     - Support `sudo`
+---     - Interactive input
+---     - Process high outputs without stutter
+---
+--- # Commands ~
+---
+---                                                      *:MXCompile*
+--- :MXCompile[!] {cmd}     Execute {cmd} in the background. If called with no
+---                         arguments, the last known command is re-run.
+---                         If called as `:MXCompile!`, it won't automatically
+---                         open the quickfix window on completion.
+---
+---                                                      *:MXRecompile*
+--- :MXRecompile[!] {cmd}   Setup a watcher to re-run {cmd} on every buffer save.
+---                         Calling with no arguments while a watcher is active
+---                         disables it.
+---                         If called as `:MXRecompile!`, it won't automatically
+---                         open the quickfix window on completion.
+---
+---                                                      *:MXKill*
+--- :MXKill                 Immediately terminate the active background task.
+---
+--- # Setup ~
+---
+--- This plugin works out of the box via 'runtimepath'. It can be configured with
+--- `vim.g.cme` before the plugin is loaded, and provides a global Lua table for
+--- scripting. Call `CME.setup()` to refresh all internal side-effects.
+---
+--- See |CME-configuration| for `config` structure and default values.
+---
+--- # Tips ~
+---
+--- Leverage built-in |quickfix| features to improve your workflow:
+---     - Jump between errors with |:cprev| and |:cnext|.
+---     - Operate on the quickfix list with |:cdo| and |:cfdo|.
+---     - Filter results with |:Cfilter|.
+---     - Cycle through previous build results with |:colder| and |:cnewer|.
 
-local M = {}
+-- ################################################################################################
+-- #                                                                                              #
+-- #                                     MODULE DEFINITION                                        #
+-- #                                                                                              #
+-- ################################################################################################
 
-local function check_cmd(fargs, target_cmd)
-        local candidate = nil
-        local expect_cmd = true
-        local separators = {
-                "&&", -- AND
-                ";", -- next
-                "||", -- OR
-                "|", -- the based unix pipe
-        }
-        local quote_char = nil
+local CME = {}
+local H = {}
 
-        for _, arg in ipairs(fargs) do
-                -- A command like `:Compile rg --vimgrep -F "foo || bar" will mistakenly read the
-                -- double bars as a shell separator if we don't keep track of the quotes. Naively,
-                -- I used `vim.tbl_contains` without such safeguards; now I know better...
-                local in_quotes = not quote_char and arg:match([=[^['"]]=])
-                if in_quotes then quote_char = arg:sub(1, 1) end
+local qf = require("cme.qf")
 
-                if not quote_char or in_quotes then
-                        if
-                                not quote_char
-                                -- Who in their right mind types "foo ; bar"? Needs check `foo; bar`
-                                and (vim.tbl_contains(separators, arg) or arg:sub(-1) == ";")
-                        then
-                                candidate = nil
-                                expect_cmd = true
-                        elseif expect_cmd then
-                                candidate = arg
-                                -- Very simple sudo support. Doesn't work with sudo flags, sorry.
-                                if arg == "sudo" and target_cmd ~= "sudo" then
-                                        expect_cmd = true
-                                else
-                                        expect_cmd = false
-                                end
+---@toc_entry CONFIGURATION
+---@tag CME-configuration
+---@class cme.Config
+---
+---@field shell string Preferred user shell.
+---     Default: `vim.o.shell`
+---
+---@field shell_flags string[] Extra flags to pass to the shell.
+---     Default: `{}`
+---
+---@field shell_expand boolean Expand wildcard characters.
+---     Default: `true`
+---
+---@field interrupt boolean Enable SIGTERM <C-c> for the quickfix window.
+---     Default: `true`
+---
+---@field efm_rules table<string, string[]> Map errorformat to a list of commands.
+---     Default:
+--- >lua
+---     {
+---             [vim.o.grepformat] = { "grep", "rg" },
+---             ["%f::0,%l"] = { "find", "fd" },
+---     }
+--- <
+---
+---@field modifiers table<string, string|function> Command mutation rules.
+---     Hooks used to normalize shell tool output for the |quickfix| list.
+---     Strings are appended; functions receive the full command and return its
+---     replacement. This occurs after expansion but before shell invocation.
+---
+---     Default:
+--- >lua
+---     {
+---             -- Appends flags to ensure output matches the efm above
+---             find = "-printf '%p::0\\n'",
+---
+---             -- Conditional: only appends flags if user omitted them
+---             -- Whitespace prefix on the return value is handled here
+---             fd = function(cmd)
+---                     if not cmd:match("--format") then
+---                             return cmd .. ' --format="{}::0"'
+---                     else
+---                             return cmd
+---                     end
+---             end,
+---     }
+--- <
+---
+---@usage >lua
+---     ---@type cme.Opts
+---     vim.g.cme = {
+---             shell = "nu",
+---             shell_flags = { "-m", "psql" },
+---             shell_expand = false,
+---             interrupt = false,
+---             efm_rules = {
+---                     ["buffer"] = { "just" },
+---             },
+---             modifiers = {
+---                     ls = "-la",
+---             },
+---     }
+--- <
+
+---@type cme.Config
+CME.config = {
+        shell = vim.o.shell,
+        shell_flags = {},
+        shell_expand = true,
+        interrupt = true,
+        efm_rules = {
+                [vim.o.grepformat] = { "grep", "rg" },
+                ["%f::0,%l"] = { "find", "fd" },
+        },
+        modifiers = {
+                find = "-printf '%p::0\\n'",
+                fd = function(cmd)
+                        if not cmd:match("--format") then
+                                return cmd .. ' --format="{}::0"'
+                        else
+                                return cmd
                         end
-                end
+                end,
+        },
+}
 
-                -- Quote not escaped? Good.
-                if quote_char and arg:sub(-1) == quote_char and arg:sub(-2, -2) ~= "\\" then
-                        quote_char = nil
-                end
-        end
-
-        if candidate then
-                -- Strip 'em quotes
-                candidate = candidate:gsub([=[^['"]]=], ""):gsub([=[['"]$]=], "")
-                -- Handle paths (/usr/bin/make -> make)
-                if candidate:find("/") then candidate = vim.fn.fnamemodify(candidate, ":t") end
-        end
-
-        return candidate == target_cmd
-end
-
-local function argparse(opts)
-        if vim.g.cme.shell_expand then
-                for i, arg in ipairs(opts.fargs) do
-                        if arg:find("%", 1, true) then opts.fargs[i] = vim.fn.expandcmd(arg) end
-                end
-                opts.args = table.concat(opts.fargs, " ")
-        end
-
-        if #opts.args ~= 0 then
-                vim.g.cme_last_cmd = opts.args
-        elseif vim.g.cme_last_cmd then
-                opts.args = vim.g.cme_last_cmd
-                opts.fargs = vim.split(vim.g.cme_last_cmd, " ", {})
-        end
-
-        if not vim.g.cme_last_cmd then
-                vim.notify("Argument required.", vim.log.levels.ERROR, { title = "cme" })
+--- Module setup.
+---
+--- Merges the provided {config} OR `vim.g.cme` with the defaults to establish the
+--- active state. This function initializes |autocommand|s, |user-commands|, and
+--- |mapping|s. Can be called multiple times to reload settings.
+---
+---@param config cme.Opts? Optional overrides.
+function CME.setup(config)
+        if vim.version.cmp(vim.version(), { 0, 12, 0 }) < 0 then
+                vim.notify(
+                        "cme.nvim requires Neovim 0.12+",
+                        vim.log.levels.ERROR,
+                        { title = "cme" }
+                )
                 return
         end
 
-        return opts
+        -- export module
+        _G.CME = CME
+
+        -- use local var to avoid de/reserialization via lua-vim bridge roundtrip
+        local validated_config = H.setup_config(config or vim.g.cme --[[@as cme.Opts?]])
+        H.apply_config(validated_config)
 end
 
-local active_job = nil
+---@toc_entry PLUGIN API
+---@tag CME-api
+---@tag CME-API
+---@text
+--- Public module functions for Compilation Mode, not in Emacs :)
 
-function M.kill_task()
-        if active_job then vim.uv.kill(-active_job.pid, "sigterm") end
-end
+--- Run compilation.
+---
+--- Internally executes the provided command (or last known) in the background
+--- and populates the quickfix list. If {opts.bang} is true, it suppresses the
+--- automatic opening of the quickfix window.
+---
+---@param opts { args: string?, bang: boolean? }? Command options.
+function CME.compile(opts)
+        opts = opts or {}
 
-function M.compile(opts)
-        opts = argparse(opts)
-        if opts == nil then return end
-
-        local sudo = {
-                stdin = false,
-                needs_pretty = false,
-        }
-
-        -- Check if sudo is the first command... and nothing else.
-        if vim.g.cme.sudo_prompt and opts.fargs[1] == "sudo" then
-                sudo.stdin = true
-                if
-                        not opts.args:find("-S", 1, true) -- User did not already tell to use stdin
-                        and not opts.args:find("-A", 1, true) -- User did not tell to use askpass
-                then
-                        opts.args = opts.args:gsub("^sudo", "sudo -S -p 'cme-password:'", 1)
-                end
+        -- parse arguments and set errorformat {{{
+        -- resolve the command string from args or history
+        local raw_args = (opts.args and opts.args ~= "") and opts.args or H.state.last_cmd
+        if not raw_args or raw_args == "" then
+                vim.notify("Command required", vim.log.levels.ERROR, { title = "cme" })
+                return
         end
 
-        -- Clear old task if any exists
-        M.kill_task()
+        local cmd = CME.config.shell_expand and vim.fn.expandcmd(raw_args) or raw_args
 
-        local buf_efm = vim.bo.errorformat ~= "" and vim.bo.errorformat or vim.o.errorformat
+        -- clear old processes if any exist
+        CME.kill()
 
-        local efm
-        for format, commands in pairs(vim.g.cme.efm_rules) do
-                for _, cmd in ipairs(commands) do
-                        if check_cmd(opts.fargs, cmd) then
-                                -- NOTE: required to match with some cme.efm.rules
-                                if cmd == "find" then
-                                        opts.args = opts.args .. " -printf '%p::0\\n'"
-                                elseif cmd == "fd" then
-                                        if not opts.args:match("--format") then
-                                                opts.args = opts.args .. ' --format="{}::0"'
-                                        end
-                                end
+        H.state.last_cmd = cmd
+        H.state.cwd = vim.uv.cwd() or vim.env.HOME or "/"
 
-                                if format == "buffer" then
-                                        efm = buf_efm
-                                else
-                                        efm = format
-                                end
-                                break
+        local exe = H.get_executable(cmd)
+        -- apply modifiers
+        local mod = exe and CME.config.modifiers[exe]
+        if type(mod) == "function" then
+                cmd = mod(cmd)
+        elseif type(mod) == "string" then
+                cmd = cmd .. " " .. mod
+        end
+
+        -- universal line-based fallback
+        local efm = "%l"
+        if not exe then
+                goto found_efm
+        end
+
+        -- check against configured efm rules
+        for rule_efm, commands in pairs(CME.config.efm_rules) do
+                if vim.tbl_contains(commands, exe) then
+                        if rule_efm == "buffer" then
+                                efm = vim.bo.efm ~= "" and vim.bo.efm or vim.o.efm
+                        else
+                                efm = rule_efm
                         end
-                end
-                if efm then break end
-        end
-
-        if not efm then
-                local compiler = vim.o.makeprg:match("%w*")
-                if check_cmd(opts.fargs, compiler) then
-                        efm = buf_efm
-                else
-                        efm = "%l"
+                        goto found_efm
                 end
         end
 
-        local queue = {}
-        local buffer = ""
-        local flushing = false
-        local counts = { E = 0, W = 0, I = 0 }
-
-        -- Swap and schedule: We want live updates for small payloads and batching for fast tools
-        local function write_batch(batch)
-                if not batch or #batch == 0 then return end
-
-                local parsed_items = vim.fn.getqflist({ lines = batch, efm = efm }).items
-                for _, item in ipairs(parsed_items) do
-                        if item.valid == 1 then
-                                local t = (item.type and item.type ~= "") and item.type:upper()
-                                        or "I"
-                                if t == "E" then
-                                        counts.E = counts.E + 1
-                                elseif t == "W" then
-                                        counts.W = counts.W + 1
-                                else
-                                        counts.I = counts.I + 1
-                                end
-                        end
-                end
-
-                local batch_title = ("compilation://run [E:%d W:%d I:%d] [cmd:%s]"):format(
-                        counts.E,
-                        counts.W,
-                        counts.I,
-                        opts.args
-                )
-
-                vim.fn.setqflist({}, "a", {
-                        title = batch_title,
-                        items = parsed_items,
-                })
-
-                -- The sudo prompt breaks the coloring slightly. Forcing the pretty function on a
-                -- small scale doesn't appear to downgrade performance. Add a check nonetheless.
-                if sudo.stdin and not sudo.needs_pretty then require("cme.qf").pretty() end
-
-                vim.cmd("cbottom")
-        end
-
-        local function flush()
-                flushing = false
-                local batch = queue
-                queue = {}
-                if #batch > 0 then write_batch(batch) end
-        end
-
-        local current_job -- Forward declaration
-        local function on_data(_, data)
-                if not data then return end
-
-                local chunk = buffer .. data
-                chunk = chunk:gsub("\r\n", "\n"):gsub("\r", "\n") -- Clean literal ^M chars
-                chunk = chunk:gsub("\x1b%[[:;%d]*m", "") -- Strip ANSI color sequences
-
-                -- Handle password prompt
-                if vim.g.cme.sudo_prompt and chunk:match("cme%-password:") then
-                        vim.schedule(function()
-                                local secret = vim.fn.inputsecret("Password: ")
-                                if secret ~= "" and current_job then
-                                        current_job:write(secret .. "\n")
-                                        current_job:write(nil) -- Close pipe to prevent hang
-                                end
-
-                                vim.defer_fn(function() sudo.needs_pretty = true end, 500)
-                        end)
-                        -- Don't show the prompt in the output else you're prompted twice
-                        chunk = chunk:gsub(
-                                "cme%-password:",
-                                ("[sudo] password for %s:"):format(vim.uv.os_getenv("USER"))
-                        )
-                end
-
-                local lines = vim.split(chunk, "\n", { plain = true, trimempty = false })
-
-                -- Discard buffer residue
-                buffer = lines[#lines]
-                lines[#lines] = nil
-
-                if #lines > 0 then vim.list_extend(queue, lines) end
-
-                if not flushing then
-                        flushing = true
-                        vim.schedule(flush)
+        do -- scope `makeprg_exe` here so the goto doesn't cause luajit to shit itself
+                -- use buffer's efm if it matches the current compiler
+                local makeprg_exe = vim.o.makeprg:match("([^%s]+)")
+                if makeprg_exe and H.get_executable(makeprg_exe) == exe then
+                        efm = vim.bo.efm ~= "" and vim.bo.efm or vim.o.efm
+                        goto found_efm
                 end
         end
 
-        -- Any two commands with large output back to back will cause horrible lagging.
-        -- Deleting the active qf buffer deals with that well enough.
+        ::found_efm::
+        -- }}}
+
+        -- any two commands with large output back to back will cause horrible
+        -- lagging. deleting the active qf buffer deals with that well enough.
         local qf_size = vim.fn.getqflist({ size = 0 }).size
         if qf_size > 20000 then
                 local qf_bufnr = vim.fn.getqflist({ qfbufnr = 0 }).qfbufnr
@@ -263,73 +267,102 @@ function M.compile(opts)
                 end
         end
 
-        vim.g.cme_cwd, _ = vim.uv.cwd()
-        if not vim.g.cme_cwd then vim.g.cme_cwd = vim.env.HOME or "/" end
-        local pretty_cwd = vim.fn.fnamemodify(vim.g.cme_cwd, ":~")
-        -- HACK: This is not a colon. This is the "Armenian Full Stop", U+0589.
-        -- Using this prevents the errorformat from incorrectly picking up the
-        -- durations as valid entries.
-        local start_time = os.date("%Y-%m-%d %H։%M։%S")
-
+        local title = ("compilation://%-6s %-5s [E:0 W:0 I:0] [cmd:%s]"):format("run", "[_]", cmd)
         local header = {
-                ("-*- directory: %s -*-"):format(pretty_cwd),
-                ("Compilation started at %s"):format(start_time),
-                "",
+                ("-*- directory: %s -*-"):format(vim.fn.fnamemodify(H.state.cwd, ":~")),
+                -- HACK: this is not a colon. this is the "Armenian Full Stop", U+0589.
+                --       using this prevents the errorformat from incorrectly picking
+                --       up the duration as a valid entry.
+                ("Compilation started at %s"):format(os.date("%Y-%m-%d %H։%M։%S")),
+                " ", -- anti `%-G` padding for header and footer
         }
-
-        local title = ("compilation://run [E:0 W:0 I:0] [cmd:%s]"):format(opts.args)
         vim.fn.setqflist({}, " ", {
                 title = title,
                 efm = efm,
                 lines = header,
         })
+
         if not opts.bang then
-                vim.cmd.copen()
-                vim.cmd.wincmd("p")
+                vim.cmd("copen | wincmd p")
         end
 
         local command = vim.iter({
-                vim.g.cme.shell,
-                vim.g.cme.shell_flags or {},
+                CME.config.shell,
+                CME.config.shell_flags or {},
                 "-c",
-                opts.args,
+                cmd,
         })
                 :flatten()
                 :totable()
 
         vim.api.nvim_exec_autocmds("User", { pattern = "CmeStarted" })
+
+        local ctx = {
+                job = nil,
+                line_fragment = "",
+                queue = {},
+                first_flush = true,
+                flushing = false,
+                efm = efm,
+                counts = { E = 0, W = 0, I = 0 },
+                cmd = cmd,
+        }
+
         local start_ns = vim.uv.hrtime()
 
-        -- We kinda don't want to lose track of our job id, in case we kill it
-        current_job = vim.system(command, {
+        ctx.job = vim.system(command, {
                 text = true,
                 detach = true,
-                stdin = sudo.stdin or nil,
-                stdout = on_data,
-                stderr = on_data,
+                stdout = function(_, data)
+                        H.on_data(ctx, data)
+                end,
+                stderr = function(_, data)
+                        H.on_data(ctx, data)
+                end,
                 env = { CME_NVIM = 1 },
         }, function(obj)
                 vim.schedule(function()
-                        if active_job ~= current_job then return end
+                        -- exit handler: don't let old jobs hijack the status
+                        if H.state.active_job ~= ctx.job then
+                                return
+                        end
 
-                        local end_ns = vim.uv.hrtime()
-                        local delta = (end_ns - start_ns) / 1e9
-                        local duration = require("cme.duration").into(delta)
+                        -- commit any text with trailing newlines
+                        if ctx.line_fragment ~= "" then
+                                table.insert(ctx.queue, ctx.line_fragment)
+                                ctx.line_fragment = ""
+                        end
+                        -- flush before we write the footer
+                        H.flush_data(ctx)
 
-                        if buffer ~= "" then table.insert(queue, buffer) end
+                        local delta = (vim.uv.hrtime() - start_ns) / 1e9
+                        local duration = H.format_duration(delta)
 
-                        -- HACK: This is not a colon. This is the "Armenian Full Stop", U+0589.
-                        -- Using this prevents the errorformat from incorrectly picking up the
-                        -- durations as valid entries.
+                        -- HACK: this is not a colon. this is the "Armenian Full Stop", U+0589.
+                        --       using this prevents the errorformat from incorrectly picking
+                        --       up the duration as a valid entry.
                         local end_time = os.date("%Y-%m-%d %H։%M։%S")
-                        local footer_msg
 
-                        if obj.signal ~= 0 then
+                        local footer_msg
+                        local t_status = "exit"
+                        local exit_val = obj.code
+
+                        -- if killed internally or externally
+                        if obj.signal == 15 or obj.signal == 2 then
+                                footer_msg = ("Compilation killed at %s, duration %s"):format(
+                                        end_time,
+                                        duration
+                                )
+                                t_status = "killed"
+                                exit_val = obj.signal
+                        elseif obj.signal ~= 0 then
                                 footer_msg = ("Compilation exited abnormally with signal %d at %s, duration %s"):format(
                                         obj.signal,
                                         end_time,
                                         duration
                                 )
+                                t_status = "signal"
+                                exit_val = obj.signal
                         elseif obj.code ~= 0 then
                                 footer_msg = ("Compilation exited abnormally with code %d at %s, duration %s"):format(
                                         obj.code,
@@ -343,53 +376,67 @@ function M.compile(opts)
                                 )
                         end
 
-                        table.insert(queue, "")
-                        table.insert(queue, footer_msg)
-                        write_batch(queue)
-
-                        local prefix = obj.signal ~= 0
-                                        and ("compilation://signal [%d]"):format(obj.signal)
-                                or ("compilation://exit [%d]"):format(obj.code)
-
-                        local final_title = prefix
-                                .. " "
-                                .. ("[E:%d W:%d I:%d]"):format(counts.E, counts.W, counts.I)
-                                .. " "
-                                .. ("[cmd:%s]"):format(opts.args)
-
                         vim.fn.setqflist({}, "a", {
-                                title = final_title,
+                                lines = {
+                                        " ", -- anti `%-G` padding for header and footer
+                                        footer_msg,
+                                },
+                                title = ("compilation://%-6s %-5s [E:%d W:%d I:%d] [cmd:%s]"):format(
+                                        t_status,
+                                        ("[%d]"):format(exit_val),
+                                        ctx.counts.E,
+                                        ctx.counts.W,
+                                        ctx.counts.I,
+                                        cmd
+                                ),
                         })
 
+                        qf.pretty()
+                        vim.cmd("cbottom")
+
                         if opts.bang then
+                                local is_err = obj.signal ~= 0 or obj.code ~= 0
+                                local msg = ("Job %s: %s"):format(
+                                        is_err and "failed" or "complete",
+                                        cmd
+                                )
                                 vim.notify(
-                                        ("Job complete: `%s`"):format(opts.args),
-                                        vim.log.levels.INFO,
+                                        msg,
+                                        is_err and vim.log.levels.ERROR or vim.log.levels.INFO,
                                         { title = "cme" }
                                 )
                         end
 
-                        local qfbufnr = vim.fn.getqflist({ qfbufnr = 0 }).qfbufnr
-
+                        local qfbuf = vim.fn.getqflist({ qfbufnr = 0 }).qfbufnr
                         vim.api.nvim_exec_autocmds("User", {
                                 pattern = "CmeFinished",
-                                data = { code = obj.code, signal = obj.signal, bufnr = qfbufnr },
+                                data = {
+                                        code = obj.code,
+                                        signal = obj.signal,
+                                        bufnr = qfbuf,
+                                },
                         })
 
-                        active_job = nil
+                        H.state.active_job = nil
                 end)
         end)
-        active_job = current_job
+
+        -- update global state
+        H.state.active_job = ctx.job
 end
 
-vim.g.cme_watch = nil
+--- Toggle recompile watcher.
+---
+--- Sets up or tears down an autocommand to run compilation on buffer save.
+--- Calling with no arguments while a watcher is active disables it.
+---
+---@param opts { args: string?, bang: boolean? }? Command options.
+function CME.recompile(opts)
+        if H.state.watch_autocmd then
+                pcall(vim.api.nvim_del_autocmd, H.state.watch_autocmd)
+                H.state.watch_autocmd = nil
 
-function M.recompile(opts)
-        if vim.g.cme_watch then
-                pcall(vim.api.nvim_del_autocmd, vim.g.cme_watch)
-                vim.g.cme_watch = nil
-
-                if #opts.fargs == 0 then
+                if not opts or not opts.args or opts.args == "" then
                         vim.notify(
                                 "Compilation watcher disabled.",
                                 vim.log.levels.INFO,
@@ -401,25 +448,444 @@ function M.recompile(opts)
         end
 
         local augroup = vim.api.nvim_create_augroup("Cme_Recompile", { clear = true })
-        vim.g.cme_watch = vim.api.nvim_create_autocmd({ "BufWritePost" }, {
+        H.state.watch_autocmd = vim.api.nvim_create_autocmd({ "BufWritePost" }, {
                 desc = "Watch for recompilation",
                 group = augroup,
                 callback = function(data)
                         local blacklist = {
-                                "COMMIT_EDITMSG",
-                                "git-rebase-todo",
+                                name = {
+                                        "COMMIT_EDITMSG",
+                                        "git-rebase-todo",
+                                },
+                                ext = {
+                                        "jjdescription",
+                                },
                         }
-                        if vim.tbl_contains(blacklist, vim.fn.expand("%:t")) then return end
 
-                        if not data.match:find(vim.g.cme_cwd, 1, true) then return end
+                        local filename = vim.fn.fnamemodify(data.match, ":t")
+                        local extension = vim.fn.fnamemodify(data.match, ":e")
 
-                        local buf = vim.api.nvim_buf_get_name(0)
-                        if not buf:find(vim.g.cme_cwd, 1, true) then return end
+                        if
+                                vim.tbl_contains(blacklist.name, filename)
+                                or vim.tbl_contains(blacklist.ext, extension)
+                        then
+                                return
+                        end
 
-                        M.compile(opts)
+                        if not H.state.cwd or not data.match:find(H.state.cwd, 1, true) then
+                                return
+                        end
+
+                        -- focus guard: don't re-run if we're in a different project
+                        local focused_buf = vim.api.nvim_buf_get_name(0)
+                        if not H.state.cwd or not focused_buf:find(H.state.cwd, 1, true) then
+                                return
+                        end
+
+                        CME.compile(opts)
                 end,
         })
-        M.compile(opts)
+
+        CME.compile(opts)
 end
 
-return M
+--- Kill active compilation job.
+---
+--- Sends a SIGTERM to the process group of the currently active job.
+---
+---@param update_qf boolean? Whether to update the quickfix list with a termination
+---     message.
+function CME.kill(update_qf)
+        if H.state.active_job then
+                -- signal the process group to ensure children are terminated
+                pcall(vim.uv.kill, -H.state.active_job.pid, "sigterm")
+                if not update_qf then
+                        H.state.active_job = nil
+                end
+        end
+end
+
+-- ################################################################################################
+-- #                                                                                              #
+-- #                                       HELPER DATA                                            #
+-- #                                                                                              #
+-- ################################################################################################
+
+---@private
+---@type cme.Config
+H.DEFAULT_CONFIG = vim.deepcopy(CME.config)
+
+---@private
+---@type cme.State
+H.state = {
+        active_job = nil,
+        last_cmd = nil,
+        cwd = nil,
+        watch_autocmd = nil,
+}
+
+-- ################################################################################################
+-- #                                                                                              #
+-- #                                   HELPER FUNCTIONALITY                                       #
+-- #                                                                                              #
+-- ################################################################################################
+
+---@private
+--- Setup configuration.
+---
+---@param config cme.Opts? Raw configuration table.
+---
+---@return cme.Config # Validated and merged configuration.
+function H.setup_config(config)
+        H.validate_config(config)
+
+        local base = vim.deepcopy(H.DEFAULT_CONFIG)
+        local user = config or {}
+        local out = vim.tbl_deep_extend("force", base, user) --[[@as cme.Config]]
+
+        if not user.efm_rules then
+                goto done
+        end
+
+        -- manually patch keys that should merge lists.
+        -- `tbl_deep_extend` does not merge k=v pairs.
+        for k, base_list in pairs(base.efm_rules) do
+                local user_list = user.efm_rules[k]
+                if user_list then
+                        out.efm_rules[k] = vim.iter({ base_list, user_list }):flatten():totable()
+                end
+        end
+
+        ::done::
+
+        return out
+end
+
+---@private
+---@param config cme.Opts? Raw configuration table.
+function H.validate_config(config)
+        vim.validate("config", config, "table", true)
+        local c = config or {}
+
+        vim.validate("shell", c.shell, "string", true)
+
+        vim.validate("shell_flags", c.shell_flags, "table", true)
+        if c.shell_flags then
+                for i, flag in ipairs(c.shell_flags) do
+                        vim.validate(("shell_flags[%d]"):format(i), flag, "string")
+                end
+        end
+
+        vim.validate("shell_expand", c.shell_expand, "boolean", true)
+        vim.validate("interrupt", c.interrupt, "boolean", true)
+
+        vim.validate("efm_rules", c.efm_rules, "table", true)
+        if c.efm_rules then
+                for efm, commands in pairs(c.efm_rules) do
+                        vim.validate("efm_rules", efm, "string")
+
+                        local context = ('efm_rules["%s"]'):format(efm)
+                        vim.validate(context, commands, "table")
+
+                        for i, cmd in ipairs(commands) do
+                                vim.validate(("%s[%d]"):format(context, i), cmd, "string")
+                        end
+                end
+        end
+
+        vim.validate("modifiers", c.modifiers, "table", true)
+        if c.modifiers then
+                for exe, mod in pairs(c.modifiers) do
+                        vim.validate("modifiers", exe, "string")
+                        vim.validate(("modifiers['%s']"):format(exe), mod, { "string", "function" })
+                end
+        end
+end
+
+---@private
+--- Apply configuration side-effects.
+---
+---@param config cme.Config Validated configuration table.
+function H.apply_config(config)
+        CME.config = config
+        vim.g.cme = config
+        H.create_autocommands()
+        H.create_usercommands()
+end
+
+---@private
+--- Create module autocommands.
+function H.create_autocommands()
+        local augroup = vim.api.nvim_create_augroup("Cme", { clear = true })
+
+        vim.api.nvim_create_autocmd({ "FileType" }, {
+                desc = "Quickfix prettify",
+                group = augroup,
+                pattern = "qf",
+                callback = function(data)
+                        vim.wo[0][0].statusline = "%!v:lua.require'cme.qf'.statusline_expr()"
+                        qf.pretty(data.buf)
+                end,
+        })
+
+        vim.api.nvim_create_autocmd("BufReadPost", {
+                desc = "Quickfix prettify for history navigation",
+                group = augroup,
+                pattern = "quickfix",
+                callback = function(args)
+                        vim.schedule(function()
+                                qf.pretty(args.buf)
+                        end)
+                end,
+        })
+end
+
+---@private
+--- Create module user commands.
+function H.create_usercommands()
+        vim.api.nvim_create_user_command("MXCompile", function(opts)
+                CME.compile(opts)
+        end, {
+                desc = "Run compilation",
+                nargs = "*",
+                bang = true,
+                complete = "shellcmd",
+        })
+
+        vim.api.nvim_create_user_command("MXRecompile", function(opts)
+                CME.recompile(opts)
+        end, {
+                desc = "Toggle recompile watcher",
+                nargs = "*",
+                bang = true,
+                complete = "shellcmd",
+        })
+
+        vim.api.nvim_create_user_command("MXKill", function()
+                CME.kill(true)
+        end, {
+                desc = "Kill active compilation",
+        })
+end
+
+---@private
+--- Identify the primary subject of a command string.
+---
+--- Resolves the terminal executable in shell chains, bypassing bridge commands
+--- and flags. Used to index errorformat rules.
+---
+---@param cmd_str string Raw or expanded command string.
+---
+---@return string? # The normalized executable name, or nil if not found.
+function H.get_executable(cmd_str)
+        -- why do i need a tokenizer to parse shell commands...?
+        local tokens = {}
+        -- generate fragments for state analysis
+        for token in cmd_str:gmatch("%S+") do
+                table.insert(tokens, token)
+        end
+
+        local candidate = nil
+        local expect_cmd = true
+        local quote_char = nil
+        local separators = {
+                "&&", -- AND
+                ";", -- next
+                "||", -- OR
+                "|", -- the based unix pipe
+        }
+        local ignores = {
+                "sudo",
+                "xargs",
+        }
+
+        for _, token in ipairs(tokens) do
+                -- are we starting a literal string (e.g., "foo ; bar")?
+                local entering_quotes = not quote_char and token:match("^['\"]")
+                if entering_quotes then
+                        quote_char = token:sub(1, 1)
+                end
+                -- command/separator logic (but only if outside quotes)
+                if not quote_char or entering_quotes then
+                        local is_separator = vim.tbl_contains(separators, token)
+                                or token:sub(-1) == ";"
+                        if is_separator then
+                                candidate = nil
+                                expect_cmd = true
+                        elseif expect_cmd then
+                                -- skip blacklisted commands and flags
+                                if vim.tbl_contains(ignores, token) then
+                                        expect_cmd = true
+                                elseif token:sub(1, 1) ~= "-" then
+                                        candidate = token
+                                        expect_cmd = false
+                                end
+                        end
+                end
+                -- does this token end the current quote scope? no escaped quotes count!
+                if quote_char and token:sub(-1) == quote_char and token:sub(-2, -2) ~= "\\" then
+                        quote_char = nil
+                end
+        end
+
+        if not candidate then
+                return nil
+        end
+
+        -- strip any outer quotes that might wrap the executable token
+        local exe = candidate:gsub("^['\"]", ""):gsub("['\"]$", "")
+        -- extract the filename if a full path was provided (/usr/bin/make -> make)
+        if exe:find("/") then
+                exe = vim.fn.fnamemodify(exe, ":t")
+        end
+        return exe
+end
+
+---@private
+--- Process incoming job data.
+---
+---@param ctx cme.JobContext Job context.
+---@param data string? Raw data chunk.
+function H.on_data(ctx, data)
+        -- input guard: don't process data from dead jobs
+        if not data or H.state.active_job ~= ctx.job then
+                return
+        end
+
+        local chunk = ctx.line_fragment .. data
+        chunk = chunk
+                -- strip ANSI color sequences
+                :gsub("\x1b%[[:;%d]*m", "")
+                -- strip WIN literal ^M
+                :gsub("\r\n", "\n")
+                -- strip UNIX literal ^M
+                :gsub("\r", "\n")
+
+        local lines = vim.split(chunk, "\n", { plain = true, trimempty = false })
+        ctx.line_fragment = table.remove(lines) or ""
+
+        if #lines > 0 then
+                vim.list_extend(ctx.queue, lines)
+        end
+
+        if not ctx.flushing and #ctx.queue > 0 then
+                ctx.flushing = true
+                vim.schedule(function()
+                        H.flush_data(ctx)
+                end)
+        end
+end
+
+---@private
+--- Process queued lines and update the quickfix list.
+---
+---@param ctx cme.JobContext Job context.
+function H.flush_data(ctx)
+        -- ui guard: don't pollute the quickfix with data from a previous job
+        if H.state.active_job ~= ctx.job then
+                return
+        end
+
+        local batch = ctx.queue
+        ctx.queue = {}
+        ctx.flushing = false
+
+        if #batch == 0 then
+                return
+        end
+
+        local items = vim.fn.getqflist({ lines = batch, efm = ctx.efm }).items
+        -- update error, warning, info counters
+        for _, item in ipairs(items) do
+                if item.valid == 1 then
+                        local t = (item.type and item.type ~= "") and item.type:upper() or "I"
+                        local key = ctx.counts[t] and t or "I"
+                        ctx.counts[key] = ctx.counts[key] + 1
+                end
+        end
+
+        vim.fn.setqflist({}, "a", {
+                title = ("compilation://%-6s %-5s [E:%d W:%d I:%d] [cmd:%s]"):format(
+                        "run",
+                        "[_]",
+                        ctx.counts.E,
+                        ctx.counts.W,
+                        ctx.counts.I,
+                        ctx.cmd
+                ),
+                items = items,
+        })
+
+        if ctx.first_flush then
+                qf.pretty()
+                ctx.first_flush = false
+        end
+        vim.cmd("cbottom")
+end
+
+---@private
+--- Format seconds into a human-readable duration string using Mixed Radix Conversion.
+---
+--- This algorithm decomposes a scalar duration into coefficients for a positional
+--- numeral system with varying bases (radices). It iteratively divides the input
+--- by conversion factors (60, 60, 24) and uses the modulo operator to normalize
+--- each unit (ms, s, m, h) within its respective radix (1000, 60, 60, 24).
+---
+---@param seconds number The duration in seconds to format.
+---
+---@return string # A formatted string in the format [DD:][HH:][MM:]SS.mmm.
+function H.format_duration(seconds)
+        local ms = math.floor((seconds % 1) * 1000)
+        local s = math.floor(seconds)
+        local m = math.floor(s / 60)
+        local h = math.floor(m / 60)
+        local d = math.floor(h / 24)
+
+        s = s % 60
+        m = m % 60
+        h = h % 24
+
+        -- HACK: this is not a colon. this is the "Armenian Full Stop", U+0589.
+        --       using this prevents the errorformat from incorrectly picking
+        --       up the duration as a valid entry.
+        if d > 0 then
+                return ("%02d։%02d։%02d։%02d.%03d"):format(d, h, m, s, ms)
+        elseif h > 0 then
+                return ("%02d։%02d։%02d.%03d"):format(h, m, s, ms)
+        elseif m > 0 then
+                return ("%02d։%02d.%03d"):format(m, s, ms)
+        else
+                return ("%d.%03d"):format(s, ms)
+        end
+end
+
+return CME
+
+---@toc_entry TROUBLESHOOTING
+---@tag CME-troubleshooting
+---@text
+--- If you encounter issues, please follow these steps:
+---
+--- Run |:checkhealth| `cme` to verify your environment, Nvim version, and
+--- database accessibility.
+---
+--- Use the provided minimal reproduction script to isolate the issue from your
+--- personal configuration:
+--- >bash
+---     just repro
+--- <
+--- Alternatively, run it directly with Neovim:
+--- >bash
+---     nvim --clean -u scripts/repro.lua
+--- <
+--- If the issue persists in the minimal environment, please report it at:
+---     https://codeberg.org/yilisharcs/cme.nvim/issues
+
+---@toc_entry SIMILAR PLUGINS
+---@tag CME-similar-plugins
+---@text
+---     - [tpope-vim-dispatch](https://github.com/tpope/vim-dispatch)
+---     - [ej-shafran/compile-mode.nvim](https://github.com/ej-shafran/compile-mode.nvim)
+
+-- NOTE: this modeline automatically formats docstrings for mini.doc
+-- vim: textwidth=82
