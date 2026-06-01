@@ -1,3 +1,4 @@
 # File backups
 *.bak
 
+.direnv/
