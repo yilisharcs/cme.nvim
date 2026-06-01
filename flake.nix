@@ -13,6 +13,7 @@
     devShells.${system}.default = pkgs.mkShell {
       buildInputs = [
         pkgs.neovim
+        pkgs.luajitPackages.busted
         # runner deps
         pkgs.just
         pkgs.nushell

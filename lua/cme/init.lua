@@ -859,6 +859,17 @@ function H.format_duration(seconds)
         end
 end
 
+-- expose internal access for Busted and :checkhealth
+setmetatable(CME, {
+        __index = function(_, key)
+                if key == "__INTERNAL_H" then
+                        return H
+                end
+        end,
+        -- block set and get metatable
+        __metatable = "INTERNAL",
+})
+
 return CME
 
 ---@toc_entry TROUBLESHOOTING
