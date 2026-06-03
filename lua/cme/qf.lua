@@ -64,23 +64,7 @@ function M.pretty(target_bufnr)
                 end
         end
 
-        -- TODO: potential perf upgrade?
-        local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-        for i, line in ipairs(lines) do
-                local row = i - 1
-                if line:sub(1, 3) == "|| " then
-                        vim.api.nvim_buf_set_extmark(bufnr, ns, row, 0, {
-                                end_col = 3,
-                                conceal = "",
-                        })
-                end
-                if #line > 2 and line:sub(-3) == "|| " then
-                        vim.api.nvim_buf_set_extmark(bufnr, ns, row, #line - 3, {
-                                end_col = #line,
-                                conceal = "",
-                        })
-                end
-        end
+        vim.fn.matchadd("Conceal", [[\(^|| \)\|\(|| $\)]], 10, -1, { conceal = "" })
 end
 
 return M
