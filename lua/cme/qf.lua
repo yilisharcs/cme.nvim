@@ -65,6 +65,85 @@ function M.pretty(target_bufnr)
         end
 
         vim.fn.matchadd("Conceal", [[\(^|| \)\|\(|| $\)]], 10, -1, { conceal = "" })
+
+        if not vim.g.cme.qf_format then
+                goto skip_conceal
+        end
+        local limit = vim.g.cme.qf_pad or 34
+        local line_count = vim.api.nvim_buf_line_count(bufnr)
+        for row = 2, line_count - 2 do
+                local text = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1]
+                if not text then
+                        break
+                end
+
+                -- 3 if typed (E|…), else 1 for untyped filename start
+                local fname_start = text:match("^[EWINH]|") and 3 or 1
+                local pipe = text:find("|", fname_start + limit)
+                if not pipe then
+                        goto continue
+                end
+
+                -- skip non-formatted entries. `getqflist` considered boilerplate here.
+                if not text:sub(pipe + 1):match("^%s+%d+:%d+%s+|") then
+                        goto continue
+                end
+
+                local fname_slice = text:sub(fname_start, pipe - 2)
+                local fname = vim.trim(fname_slice)
+                if #fname > limit then
+                        local keep = limit - 1
+                        local cutoff = #fname - keep
+                        local leading = #fname_slice - #fname_slice:gsub("^%s+", "")
+                        local start_col = fname_start + leading - 1
+                        vim.api.nvim_buf_set_extmark(bufnr, ns, row, start_col, {
+                                end_col = start_col + cutoff,
+                                conceal = "…",
+                        })
+                end
+
+                ::continue::
+        end
+
+        ::skip_conceal::
+end
+
+-- https://github.com/kevinhwang91/nvim-bqf/?tab=readme-ov-file#customize-quickfix-window-easter-egg
+function M.quickfixtextfunc(info)
+        local items
+        if info.quickfix == 1 then
+                items = vim.fn.getqflist({ id = info.id, items = 0 }).items
+        else
+                items = vim.fn.getloclist(info.winid, { id = info.id, items = 0 }).items
+        end
+
+        local ret = {}
+        for i = info.start_idx, info.end_idx do
+                local e = items[i]
+                if e.valid == 1 then
+                        local fname = (e.bufnr > 0) and vim.fn.bufname(e.bufnr) or ""
+                        if fname == "" then
+                                fname = "[No Name]"
+                        else
+                                fname = fname:gsub("^" .. vim.env.HOME, "~")
+                        end
+                        local lnum = e.lnum > 99999 and -1 or e.lnum
+                        local col = e.col > 999 and -1 or e.col
+                        local qtype = e.type == "" and "" or e.type:sub(1, 1):upper() .. "|"
+                        local pad = vim.g.cme.qf_pad or 34
+                        if #fname < pad then
+                                fname = fname .. (" "):rep(pad - #fname)
+                        end
+                        -- stylua: ignore
+                        local validFmt = (e.type == "")
+                                and "%s%s | %5d:%-3d | %s"
+                                or "%s %s | %5d:%-3d | %s"
+                        table.insert(ret, validFmt:format(qtype, fname, lnum, col, e.text))
+                else
+                        table.insert(ret, e.text)
+                end
+        end
+        return ret
 end
 
 return M

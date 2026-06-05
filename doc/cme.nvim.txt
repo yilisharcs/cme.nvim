@@ -88,6 +88,17 @@ Fields ~
 {interrupt} `(boolean)` Enable SIGTERM <C-c> for the quickfix window.
     Default: `true`
 
+{qf_format} `(boolean)` Enable the custom |quickfixtextfunc| and |syntax|.
+
+    WARNING: The conceal extmarks used for filename truncation can cause
+             the cursor to behave erratically, jumping left and right as
+             the length of the concealed region changes.
+
+    Default: `true`
+
+{qf_pad} `(number)` Width for filename padding and conceal truncation.
+    Default: `34`
+
 {efm_rules} `(table<string, string[]>)` Map errorformat to a list of commands.
     Default:
 >lua
@@ -99,8 +110,9 @@ Fields ~
 
 {modifiers} `(table<string, string|function>)` Command mutation rules.
     Hooks used to normalize shell tool output for the |quickfix| list.
-    Strings are appended; functions receive the full command and return its
-    replacement. This occurs after expansion but before shell invocation.
+    Strings are injected after the executable (before other flags);
+    functions receive the full command and return its replacement.
+    This occurs after expansion but before shell invocation.
 
     Default:
 >lua
@@ -127,6 +139,8 @@ Usage ~
             shell_flags = { "-m", "psql" },
             shell_expand = false,
             interrupt = false,
+            qf_format = false,
+            qf_pad = 26,
             efm_rules = {
                     ["buffer"] = { "just" },
             },

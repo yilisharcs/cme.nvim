@@ -103,6 +103,14 @@ vim.g.cme = {
         shell_expand = true,
         -- Enable SIGTERM <C-c> for the quickfix window.
         interrupt = true,
+        -- Enable the custom |quickfixtextfunc| and |syntax|.
+        -- 
+        -- WARNING: The conceal extmarks used for filename truncation can cause
+        --          the cursor to behave erratically, jumping left and right as
+        --          the length of the concealed region changes.
+        qf_format = true,
+        -- Width for filename padding and conceal truncation.
+        qf_pad = 34,
         -- Map errorformat to a list of commands.
         efm_rules = {
                 [vim.o.grepformat] = { "grep", "rg" },
@@ -110,7 +118,8 @@ vim.g.cme = {
         },
         -- Command mutation rules.
         -- Hooks used to normalize shell tool output for the |quickfix| list.
-        -- Strings are appended; functions receive the full command and return its replacement. This occurs after expansion but before shell invocation.
+        -- Strings are injected after the executable (before other flags); functions receive the full command and return its replacement.
+        -- This occurs after expansion but before shell invocation.
         modifiers = {
                 -- Appends flags to ensure output matches the efm above
                 find = "-printf '%p::0\\n'",

@@ -7,3 +7,4 @@ end
 
 vim.wo[0][0].conceallevel = 2
 vim.wo[0][0].concealcursor = "nvc"
+vim.wo[0][0].list = false

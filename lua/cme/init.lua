@@ -91,6 +91,17 @@ local qf = require("cme.qf")
 ---@field interrupt boolean Enable SIGTERM <C-c> for the quickfix window.
 ---     Default: `true`
 ---
+---@field qf_format boolean Enable the custom |quickfixtextfunc| and |syntax|.
+---
+---     WARNING: The conceal extmarks used for filename truncation can cause
+---              the cursor to behave erratically, jumping left and right as
+---              the length of the concealed region changes.
+---
+---     Default: `true`
+---
+---@field qf_pad number Width for filename padding and conceal truncation.
+---     Default: `34`
+---
 ---@field efm_rules table<string, string[]> Map errorformat to a list of commands.
 ---     Default:
 --- >lua
@@ -102,8 +113,9 @@ local qf = require("cme.qf")
 ---
 ---@field modifiers table<string, string|function> Command mutation rules.
 ---     Hooks used to normalize shell tool output for the |quickfix| list.
----     Strings are appended; functions receive the full command and return its
----     replacement. This occurs after expansion but before shell invocation.
+---     Strings are injected after the executable (before other flags);
+---     functions receive the full command and return its replacement.
+---     This occurs after expansion but before shell invocation.
 ---
 ---     Default:
 --- >lua
@@ -129,6 +141,8 @@ local qf = require("cme.qf")
 ---             shell_flags = { "-m", "psql" },
 ---             shell_expand = false,
 ---             interrupt = false,
+---             qf_format = false,
+---             qf_pad = 26,
 ---             efm_rules = {
 ---                     ["buffer"] = { "just" },
 ---             },
@@ -144,6 +158,8 @@ CME.config = {
         shell_flags = {},
         shell_expand = true,
         interrupt = true,
+        qf_format = true,
+        qf_pad = 34,
         efm_rules = {
                 [vim.o.grepformat] = { "grep", "rg" },
                 ["%f::0,%l"] = { "find", "fd" },
@@ -218,7 +234,7 @@ function CME.compile(opts)
         H.state.last_cmd = cmd
         H.state.cwd = vim.uv.cwd() or vim.env.HOME or "/"
 
-        local exe = H.get_executable(cmd)
+        local exe, exe_end = H.get_executable(cmd)
         -- apply modifiers
         local mod = exe and CME.config.modifiers[exe]
         if type(mod) == "function" then
@@ -583,6 +599,8 @@ function H.validate_config(config)
 
         vim.validate("shell_expand", c.shell_expand, "boolean", true)
         vim.validate("interrupt", c.interrupt, "boolean", true)
+        vim.validate("qf_format", c.qf_format, "boolean", true)
+        vim.validate("qf_pad", c.qf_pad, "number", true)
 
         vim.validate("efm_rules", c.efm_rules, "table", true)
         if c.efm_rules then
@@ -616,6 +634,10 @@ function H.apply_config(config)
         vim.g.cme = config
         H.create_autocommands()
         H.create_usercommands()
+
+        if config.qf_format then
+                vim.o.qftf = "{info -> v:lua.require'cme.qf'.quickfixtextfunc(info)}"
+        end
 end
 
 ---@private
