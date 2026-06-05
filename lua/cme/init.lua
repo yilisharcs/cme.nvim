@@ -113,9 +113,9 @@ local qf = require("cme.qf")
 ---
 ---@field modifiers table<string, string|function> Command mutation rules.
 ---     Hooks used to normalize shell tool output for the |quickfix| list.
----     Strings are injected after the executable (before other flags);
----     functions receive the full command and return its replacement.
----     This occurs after expansion but before shell invocation.
+---     Strings or function return values are injected after the executable and
+---     before other flags; functions return `nil` to skip. This occurs after
+---     expansion but before shell invocation.
 ---
 ---     Default:
 --- >lua
@@ -164,14 +164,11 @@ CME.config = {
                 [vim.o.grepformat] = { "grep", "rg" },
                 ["%f::0,%l"] = { "find", "fd" },
         },
-        -- TODO: should somehow be injected AFTER the binary but BEFORE the flags
         modifiers = {
                 find = "-printf '%p::0\\n'",
                 fd = function(cmd)
                         if not cmd:match("--format") then
-                                return cmd .. ' --format="{}::0"'
-                        else
-                                return cmd
+                                return '--format="{}::0"'
                         end
                 end,
         },
@@ -237,10 +234,16 @@ function CME.compile(opts)
         local exe, exe_end = H.get_executable(cmd)
         -- apply modifiers
         local mod = exe and CME.config.modifiers[exe]
+        local flags
         if type(mod) == "function" then
-                cmd = mod(cmd)
+                flags = mod(cmd)
         elseif type(mod) == "string" then
-                cmd = cmd .. " " .. mod
+                flags = mod
+        end
+        if flags and flags ~= "" and exe_end then
+                local before = cmd:sub(1, exe_end)
+                local after = cmd:sub(exe_end + 1)
+                cmd = before .. " " .. flags .. after
         end
 
         -- universal line-based fallback
@@ -703,7 +706,7 @@ end
 ---
 ---@param cmd_str string Raw or expanded command string.
 ---
----@return string? # The normalized executable name, or nil if not found.
+---@return string?, integer? # Normalized executable name, end position; nil if not found.
 function H.get_executable(cmd_str)
         -- why do i need a tokenizer to parse shell commands...?
         local tokens = {}
@@ -713,6 +716,7 @@ function H.get_executable(cmd_str)
         end
 
         local candidate = nil
+        local candidate_end = nil
         local expect_cmd = true
         local quote_char = nil
         local separators = {
@@ -726,7 +730,10 @@ function H.get_executable(cmd_str)
                 "xargs",
         }
 
+        local search_pos = 1
         for _, token in ipairs(tokens) do
+                local s = cmd_str:find(vim.pesc(token), search_pos)
+                local e = s and s + #token - 1
                 -- are we starting a literal string (e.g., "foo ; bar")?
                 local entering_quotes = not quote_char and token:match("^['\"]")
                 if entering_quotes then
@@ -738,6 +745,7 @@ function H.get_executable(cmd_str)
                                 or token:sub(-1) == ";"
                         if is_separator then
                                 candidate = nil
+                                candidate_end = nil
                                 expect_cmd = true
                         elseif expect_cmd then
                                 -- skip blacklisted commands and flags
@@ -745,6 +753,7 @@ function H.get_executable(cmd_str)
                                         expect_cmd = true
                                 elseif token:sub(1, 1) ~= "-" then
                                         candidate = token
+                                        candidate_end = e
                                         expect_cmd = false
                                 end
                         end
@@ -753,6 +762,7 @@ function H.get_executable(cmd_str)
                 if quote_char and token:sub(-1) == quote_char and token:sub(-2, -2) ~= "\\" then
                         quote_char = nil
                 end
+                search_pos = e and e + 1 or search_pos
         end
 
         if not candidate then
@@ -765,7 +775,7 @@ function H.get_executable(cmd_str)
         if exe:find("/") then
                 exe = vim.fn.fnamemodify(exe, ":t")
         end
-        return exe
+        return exe, candidate_end
 end
 
 ---@private

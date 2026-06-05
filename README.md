@@ -118,8 +118,7 @@ vim.g.cme = {
         },
         -- Command mutation rules.
         -- Hooks used to normalize shell tool output for the |quickfix| list.
-        -- Strings are injected after the executable (before other flags); functions receive the full command and return its replacement.
-        -- This occurs after expansion but before shell invocation.
+        -- Strings or function return values are injected after the executable and before other flags; functions return `nil` to skip. This occurs after expansion but before shell invocation.
         modifiers = {
                 -- Appends flags to ensure output matches the efm above
                 find = "-printf '%p::0\\n'",
