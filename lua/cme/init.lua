@@ -46,7 +46,7 @@
 ---                         open the quickfix window on completion.
 ---
 ---                                                      *:MXKill*
---- :MXKill                 Immediately terminate the active background task.
+--- :MXKill                 Immediately terminate the active background job.
 ---
 --- # Setup ~
 ---
@@ -61,8 +61,8 @@
 --- Leverage built-in |quickfix| features to improve your workflow:
 ---     - Jump between errors with |:cprev| and |:cnext|.
 ---     - Operate on the quickfix list with |:cdo| and |:cfdo|.
+---     - Cycle through previous results with |:colder| and |:cnewer|.
 ---     - Filter results with |:Cfilter|.
----     - Cycle through previous build results with |:colder| and |:cnewer|.
 
 -- ################################################################################################
 --
@@ -110,7 +110,6 @@ local qf = require("cme.qf")
 ---     {
 ---             -- Appends flags to ensure output matches the efm above
 ---             find = "-printf '%p::0\\n'",
----
 ---             -- Conditional: only appends flags if user omitted them
 ---             -- Whitespace prefix on the return value is handled here
 ---             fd = function(cmd)
@@ -149,6 +148,7 @@ CME.config = {
                 [vim.o.grepformat] = { "grep", "rg" },
                 ["%f::0,%l"] = { "find", "fd" },
         },
+        -- TODO: should somehow be injected AFTER the binary but BEFORE the flags
         modifiers = {
                 find = "-printf '%p::0\\n'",
                 fd = function(cmd)
@@ -428,7 +428,9 @@ end
 --- Toggle recompile watcher.
 ---
 --- Sets up or tears down an autocommand to run compilation on buffer save.
---- Calling with no arguments while a watcher is active disables it.
+--- Calling with no arguments while a watcher is active disables it. If
+--- {opts.bang} is true, it suppresses the automatic opening of the quickfix
+--- window.
 ---
 ---@param opts { args: string?, bang: boolean? }? Command options.
 function CME.recompile(opts)
@@ -491,10 +493,13 @@ end
 
 --- Kill active compilation job.
 ---
---- Sends a SIGTERM to the process group of the currently active job.
+--- Sends a SIGTERM to the process group of the currently active job. When
+--- {update_qf} is `true`, the job object is retained so the exit handler can
+--- write a termination message to the quickfix list. When `false`, the job
+--- reference is cleared immediately.
 ---
----@param update_qf boolean? Whether to update the quickfix list with a termination
----     message.
+---@param update_qf boolean? Whether to keep the job reference for the exit
+---     handler to write a termination message.
 function CME.kill(update_qf)
         if H.state.active_job then
                 -- signal the process group to ensure children are terminated
@@ -824,12 +829,11 @@ function H.flush_data(ctx)
 end
 
 ---@private
---- Format seconds into a human-readable duration string using Mixed Radix Conversion.
+--- Format seconds into a human-readable duration string.
 ---
---- This algorithm decomposes a scalar duration into coefficients for a positional
---- numeral system with varying bases (radices). It iteratively divides the input
---- by conversion factors (60, 60, 24) and uses the modulo operator to normalize
---- each unit (ms, s, m, h) within its respective radix (1000, 60, 60, 24).
+--- Uses successive division to decompose the input into days, hours, minutes,
+--- seconds, and milliseconds. Each unit is extracted via integer division by
+--- its ratio (24, 60, 60, 1000), with the remainder passing to the next level.
 ---
 ---@param seconds number The duration in seconds to format.
 ---
@@ -877,8 +881,7 @@ return CME
 ---@text
 --- If you encounter issues, please follow these steps:
 ---
---- Run |:checkhealth| `cme` to verify your environment, Nvim version, and
---- database accessibility.
+--- Run |:checkhealth| `cme` to verify your environment and Nvim version.
 ---
 --- Use the provided minimal reproduction script to isolate the issue from your
 --- personal configuration:

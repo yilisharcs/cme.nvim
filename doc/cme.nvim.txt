@@ -50,7 +50,7 @@ What this plugin doesn't do (yet):
                         open the quickfix window on completion.
 
                                                      *:MXKill*
-:MXKill                 Immediately terminate the active background task.
+:MXKill                 Immediately terminate the active background job.
 
 # Setup ~
 
@@ -63,13 +63,15 @@ See |CME-configuration| for `config` structure and default values.
 # Tips ~
 
 Leverage built-in |quickfix| features to improve your workflow:
-- Jump between errors with |:cprev| and |:cnext|.
-- Operate on the quickfix list with |:cdo| and |:cfdo|.
-- Filter results with |:Cfilter|.
-- Cycle through previous build results with |:colder| and |:cnewer|.
+    - Jump between errors with |:cprev| and |:cnext|.
+    - Operate on the quickfix list with |:cdo| and |:cfdo|.
+    - Cycle through previous results with |:colder| and |:cnewer|.
+    - Filter results with |:Cfilter|.
 
 ------------------------------------------------------------------------------
                                                              *CME-configuration*
+                                                                    *CME.config*
+                                  `CME.config`
 Class ~
 {cme.Config}
 
@@ -105,7 +107,6 @@ Fields ~
     {
             -- Appends flags to ensure output matches the efm above
             find = "-printf '%p::0\\n'",
-
             -- Conditional: only appends flags if user omitted them
             -- Whitespace prefix on the return value is handled here
             fd = function(cmd)
@@ -134,12 +135,6 @@ Usage ~
             },
     }
 <
-------------------------------------------------------------------------------
-                                                                    *CME.config*
-                                  `CME.config`
-Type ~
-`(cme.Config)`
-
 ------------------------------------------------------------------------------
                                                                    *CME.setup()*
                              `CME.setup`({config})
@@ -176,7 +171,9 @@ Parameters ~
 Toggle recompile watcher.
 
 Sets up or tears down an autocommand to run compilation on buffer save.
-Calling with no arguments while a watcher is active disables it.
+Calling with no arguments while a watcher is active disables it. If
+{opts.bang} is true, it suppresses the automatic opening of the quickfix
+window.
 
 Parameters ~
 {opts} `({ args: string?, bang: boolean? }?)` Command options.
@@ -186,19 +183,21 @@ Parameters ~
                             `CME.kill`({update_qf})
 Kill active compilation job.
 
-Sends a SIGTERM to the process group of the currently active job.
+Sends a SIGTERM to the process group of the currently active job. When
+{update_qf} is `true`, the job object is retained so the exit handler can
+write a termination message to the quickfix list. When `false`, the job
+reference is cleared immediately.
 
 Parameters ~
-{update_qf} `(boolean?)` Whether to update the quickfix list with a termination
-    message.
+{update_qf} `(boolean?)` Whether to keep the job reference for the exit
+    handler to write a termination message.
 
 ------------------------------------------------------------------------------
                                                            *CME-troubleshooting*
 
 If you encounter issues, please follow these steps:
 
-Run |:checkhealth| `cme` to verify your environment, Nvim version, and
-database accessibility.
+Run |:checkhealth| `cme` to verify your environment and Nvim version.
 
 Use the provided minimal reproduction script to isolate the issue from your
 personal configuration:
@@ -215,8 +214,8 @@ If the issue persists in the minimal environment, please report it at:
 ------------------------------------------------------------------------------
                                                            *CME-similar-plugins*
 
-- [tpope-vim-dispatch](https://github.com/tpope/vim-dispatch)
-- [ej-shafran/compile-mode.nvim](https://github.com/ej-shafran/compile-mode.nvim)
+    - [tpope-vim-dispatch](https://github.com/tpope/vim-dispatch)
+    - [ej-shafran/compile-mode.nvim](https://github.com/ej-shafran/compile-mode.nvim)
 
 
  vim:tw=78:ts=8:noet:ft=help:norl:

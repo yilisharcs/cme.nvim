@@ -2,7 +2,7 @@ set shell               := ["nu", "-c"] # for single-line execution
 set script-interpreter  := ["nu"]       # for bundled execution
 
 doc:
-        nvim --clean --headless -l scripts/doc.lua
+        nvim --clean --headless -l scripts/docgen.lua
 
 repro:
         nvim --clean -u scripts/repro.lua

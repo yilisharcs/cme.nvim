@@ -18,7 +18,7 @@
 - [ ] make sudo work again
 - [ ] update assets screenshot with the vanilla statusline
     - [ ] ... and the vanilla `vim.o.quickfixtextfunc`
-- [ ] bring over docgen script from quarrel
+- [x] bring over docgen script from quarrel
 - [ ] Add extra ansi filters
     - [ ] `printf '\e[32m✔\e[0m %s\n' "$@"`
     - [ ] `printf '\e[31m✘\e[0m %s\n' "$@" >&2`
