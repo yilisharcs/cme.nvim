@@ -1,5 +1,5 @@
-local cme = require("cme")
-local H = cme.__INTERNAL_H
+local CME = require("cme")
+local H = CME.__INTERNAL_H
 
 describe("tokenizer", function()
         it("identifies simple executables", function()
