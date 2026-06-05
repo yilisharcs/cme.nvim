@@ -35,7 +35,7 @@ function M.pretty(target_bufnr)
         vim.api.nvim_set_hl(0, "CmeDirectory",   { link = "CmeDuration" })
         -- stylua: ignore end
 
-        local targets = { 0, 1, 2, vim.api.nvim_buf_line_count(bufnr) - 1 }
+        local targets = { 0, 1, vim.api.nvim_buf_line_count(bufnr) - 1 }
 
         local rules = {
                 ["%d+-%d+-%d+ %d+։%d+։%d+"] = "CmeDateTime",
