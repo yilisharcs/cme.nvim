@@ -3,11 +3,21 @@ package.path = "./vendor/mini.doc/lua/?.lua;" .. package.path
 local minidoc = require("mini.doc")
 minidoc.setup()
 
+local spec = {
+        id = "cme",
+        title = "CME",
+        author = "yilisharcs",
+        cmd_prefix = "MX",
+}
+
+local repo = spec.author .. "/" .. spec.id .. ".nvim"
+local url = "https://codeberg.org/" .. repo
+
 -- documentation manifest. `entrypoint` is explicitly placed at the first index
 -- of the input array passed to `minidoc.generate()` so it can be accessible as
 -- doc[1] in its many hooks.
 local manifest = {
-        entrypoint = "lua/cme/init.lua",
+        entrypoint = "lua/" .. spec.id .. "/init.lua",
         metadata = {},
 }
 setmetatable(manifest, {
@@ -63,7 +73,7 @@ H.synthesize_lua_table = function(doc, fields, indent)
                 local desc = f.desc:gsub("\n", "\n" .. indent .. "-- ")
                 table.insert(lines, indent .. "-- " .. desc)
 
-                if f.type:match("^cme%.") then
+                if f.type:match("^" .. spec.id .. "%.") then
                         local sub_block = H.find_block_by_class(doc, f.type)
                         if sub_block then
                                 local sub_fields = H.parse_fields(sub_block)
@@ -247,7 +257,7 @@ H.prepare_doc_tree = function(doc, is_readme)
                                 return type(s) == "table"
                                         and s.info
                                         and s.info.id == "@tag"
-                                        and H.has_pattern(s, "CME-configuration")
+                                        and H.has_pattern(s, spec.title .. "-configuration")
                         end)
                 then
                         blocks.config, idxs.config = block, i
@@ -256,7 +266,7 @@ H.prepare_doc_tree = function(doc, is_readme)
                                 return type(s) == "table"
                                         and s.info
                                         and s.info.id == "@tag"
-                                        and H.has_pattern(s, "CME.config")
+                                        and H.has_pattern(s, spec.title .. ".config")
                         end)
                 then
                         blocks.var, idxs.var = block, i
@@ -267,8 +277,8 @@ H.prepare_doc_tree = function(doc, is_readme)
                 local cfg_fields = H.parse_fields(blocks.config)
 
                 local lines = {
-                        "---@type cme.Opts",
-                        "vim.g.cme = {",
+                        "---@type " .. spec.id .. ".Opts",
+                        "vim.g." .. spec.id .. " = {",
                 }
 
                 -- reassemble configuration documentation from ordered field objects
@@ -385,7 +395,7 @@ H.prepare_doc_tree = function(doc, is_readme)
                 -- get rid of duplicates
                 local duplicates = { idxs.var }
 
-                -- find and remove the block for vim.g.cme generated
+                -- find and remove the block for vim.g.[id] generated
                 -- from the @type annotation in the usage block
                 for i, block in ipairs(file) do
                         if
@@ -393,7 +403,7 @@ H.prepare_doc_tree = function(doc, is_readme)
                                         return type(s) == "table"
                                                 and s.info
                                                 and s.info.id == "@tag"
-                                                and H.has_pattern(s, "vim.g.cme")
+                                                and H.has_pattern(s, "vim.g." .. spec.id)
                                 end)
                         then
                                 table.insert(duplicates, i)
@@ -445,19 +455,21 @@ readme_hooks.doc = function(doc)
                 local is_config_tag = block:has_descendant(function(s)
                         return s.info
                                 and s.info.id == "@tag"
-                                and H.has_pattern(s, "CME-configuration")
+                                and H.has_pattern(s, spec.title .. "-configuration")
                 end)
-                local is_cme_class = block:has_descendant(function(s)
+                local is_class = block:has_descendant(function(s)
                         return s.info
                                 and s.info.id == "@class"
-                                and H.has_pattern(s, "cme.")
-                                and not H.has_pattern(s, "cme.Config")
+                                and H.has_pattern(s, spec.id .. ".")
+                                and not H.has_pattern(s, spec.id .. ".Config")
                 end)
                 local is_var = block:has_descendant(function(s)
-                        return s.info and s.info.id == "@tag" and H.has_pattern(s, "CME.config")
+                        return s.info
+                                and s.info.id == "@tag"
+                                and H.has_pattern(s, spec.title .. ".config")
                 end)
 
-                if is_config_tag or is_cme_class or is_var then
+                if is_config_tag or is_class or is_var then
                         should_remove = true
                 end
 
@@ -498,13 +510,13 @@ readme_hooks.doc = function(doc)
                 file:remove(to_remove[i])
         end
 
-        -- remove `cme.Setup` class block
+        -- remove `[id].Setup` class block
         for i = #file, 1, -1 do
                 if
                         file[i]:has_descendant(function(s)
                                 return s.info
                                         and s.info.id == "@signature"
-                                        and H.has_pattern(s, "CME.setup")
+                                        and H.has_pattern(s, spec.title .. ".setup")
                         end)
                 then
                         file:remove(i)
@@ -518,7 +530,7 @@ end
 readme_hooks.write_pre = function(lines)
         -- header
         local res = {
-                "# cme.nvim",
+                "# " .. spec.id .. ".nvim",
                 "",
                 "Compilation Mode, not in Emacs.",
                 "",
@@ -530,7 +542,7 @@ readme_hooks.write_pre = function(lines)
                 "",
                 "```lua",
                 "vim.pack.add({",
-                H.s8 .. 'src = "https://codeberg.org/yilisharcs/cme.nvim",',
+                H.s8 .. 'src = "' .. url .. '",',
                 "})",
                 "```",
                 "",
@@ -538,9 +550,9 @@ readme_hooks.write_pre = function(lines)
                 "",
                 "```lua",
                 "{",
-                H.s8 .. '"yilisharcs/cme.nvim",',
+                H.s8 .. '"' .. repo .. '",',
                 H.s8 .. "init = function()",
-                H.s8 .. H.s8 .. "vim.g.cme = { --[[ config goes here ]] }",
+                H.s8 .. H.s8 .. "vim.g." .. spec.id .. " = { --[[ config goes here ]] }",
                 H.s8 .. "end",
                 H.s8 .. "specs = { {",
                 H.s8 .. H.s8 .. '"https://github.com/nvim-lualine/lualine.nvim",',
@@ -560,9 +572,9 @@ readme_hooks.write_pre = function(lines)
                         line:match("^=+$")
                         or line:match("^%-+$")
                         -- title
-                        or line:find("cme.nvim.txt", 1, true)
+                        or line:find(spec.id .. ".nvim.txt", 1, true)
                         -- help tags
-                        or line:match("^%s*%*CME%S*%*%s*$")
+                        or line:match("^%s*%*" .. spec.title .. "%S*%*%s*$")
                         -- license line
                         or line:match("^%s*Apache License 2.0 Copyright")
                         -- TOC
@@ -573,7 +585,7 @@ readme_hooks.write_pre = function(lines)
                         goto next_line
                 end
 
-                if line:match("^%s+https://codeberg.org/yilisharcs/cme.nvim/issues$") then
+                if line:match("^%s+https://codeberg.org/" .. repo .. "/issues$") then
                         table.insert(res, "")
                         table.insert(res, vim.trim(line))
                         goto next_line
@@ -612,13 +624,12 @@ readme_hooks.write_pre = function(lines)
                 end
 
                 -- level 5 headers
-                local cmd_tag = line:match("^%s+%*(:MX%w+)%*%s*$")
+                local cmd_tag = line:match("^%s+%*(:" .. spec.cmd_prefix .. "%w+)%*%s*$")
                 if cmd_tag then
                         local sig = cmd_tag
                         local next_line = lines[i + 1]
                         if next_line then
-                                sig = next_line:match("^(:MX%w+%[!%] {cmd})")
-                                        or next_line:match("^(:MX%w+)")
+                                sig = next_line:match("^(:" .. spec.cmd_prefix .. "%w+.-)%s%s")
                                         or sig
                         end
                         table.insert(res, "")
@@ -631,18 +642,18 @@ readme_hooks.write_pre = function(lines)
                         -- de-indent
                         line = line:gsub("^" .. H.s4, "")
                 else
-                        line = line:gsub("%*cme.nvim%*", "_cme.nvim_")
-                        -- replace full command signature (e.g. ":MXCompile[!] {cmd}")
-                        -- at start of line with spaces to maintain alignment
-                        line = line:gsub("^:MX%w+%[!%] {cmd}%s+", function(m)
-                                return string.rep(" ", #m)
-                        end)
-                        line = line:gsub("^:MX%w+%s+", function(m)
+                        line = line:gsub("%*" .. spec.id .. ".nvim%*", "_" .. spec.id .. ".nvim_")
+                        -- replace command signature at start of
+                        -- line with spaces to maintain alignment
+                        line = line:gsub("^:" .. spec.cmd_prefix .. "%w+.-%s%s+", function(m)
                                 return string.rep(" ", #m)
                         end)
 
                         -- inline formatting
-                        line = line:gsub("|:checkhealth| `cme` ", "`:checkhealth cme` ")
+                        line = line:gsub(
+                                "|:checkhealth| `" .. spec.id .. "` ",
+                                "`:checkhealth " .. spec.id .. "` "
+                        )
                         line = line:gsub("|([^|]+)|", "`%1`")
                 end
                 table.insert(res, line)
@@ -655,7 +666,7 @@ readme_hooks.write_pre = function(lines)
                 "",
                 "## LICENSE",
                 "",
-                "Copyright 2025-2026 yilisharcs",
+                "Copyright 2025-2026 " .. spec.author,
                 "",
                 'Licensed under the Apache License, Version 2.0 (the "License");',
                 "you may not use this file except in compliance with the License.",
@@ -681,7 +692,7 @@ readme_hooks.write_pre = function(lines)
         return final_res
 end
 
-minidoc.generate(manifest(), "doc/cme.nvim.txt", {
+minidoc.generate(manifest(), "doc/" .. spec.id .. ".nvim.txt", {
         hooks = doc_hooks,
 })
 
