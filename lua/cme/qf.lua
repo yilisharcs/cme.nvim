@@ -27,13 +27,16 @@ function M.pretty(target_bufnr)
         local ns = vim.api.nvim_create_namespace("cme_qf")
         vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
 
-        -- stylua: ignore start
-        vim.api.nvim_set_hl(0, "CmeDateTime",    { fg = "#ffaf00", bold = true, ctermfg = "green" })
-        vim.api.nvim_set_hl(0, "CmeExitSuccess", { fg = "#00af5f", bold = true, ctermfg = "red" })
-        vim.api.nvim_set_hl(0, "CmeExitFailure", { fg = "#d7005f", bold = true, ctermfg = "yellow" })
-        vim.api.nvim_set_hl(0, "CmeDuration",    { fg = "#00afff", bold = true, ctermfg = "cyan" })
-        vim.api.nvim_set_hl(0, "CmeDirectory",   { link = "CmeDuration" })
-        -- stylua: ignore end
+        local function hl_from(name, link_to)
+                local from = vim.tbl_extend("keep", {}, vim.api.nvim_get_hl(0, { name = link_to }))
+                from.bold = true
+                vim.api.nvim_set_hl(0, name, from)
+        end
+        hl_from("CmeDateTime", "DiagnosticWarn")
+        hl_from("CmeExitSuccess", "DiagnosticOk")
+        hl_from("CmeExitFailure", "DiagnosticError")
+        hl_from("CmeDuration", "DiagnosticInfo")
+        hl_from("CmeDirectory", "DiagnosticInfo")
 
         local targets = { 0, 1, vim.api.nvim_buf_line_count(bufnr) - 1 }
 
