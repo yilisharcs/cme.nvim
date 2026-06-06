@@ -94,9 +94,15 @@ function M.pretty(target_bufnr)
 
                 local fname_slice = text:sub(fname_start, pipe - 2)
                 local fname = vim.trim(fname_slice)
-                if #fname > limit then
-                        local keep = limit - 1
-                        local cutoff = #fname - keep
+                local fname_visual_width = vim.fn.strdisplaywidth(fname)
+                if fname_visual_width > limit then
+                        -- non-ASCII characters have different widths.
+                        -- we can't assume bytecount == length.
+                        local suffix_bytes = #vim.fn.matchstr(
+                                fname,
+                                "\\%>" .. (fname_visual_width - limit + 1) .. "v.*"
+                        )
+                        local cutoff = #fname - suffix_bytes
                         local leading = #fname_slice - #fname_slice:gsub("^%s+", "")
                         local start_col = fname_start + leading - 1
                         vim.api.nvim_buf_set_extmark(bufnr, ns, row, start_col, {
@@ -134,8 +140,9 @@ function M.quickfixtextfunc(info)
                         local col = e.col > 999 and -1 or e.col
                         local qtype = e.type == "" and "" or e.type:sub(1, 1):upper() .. "|"
                         local pad = vim.g.cme.qf_pad or 34
-                        if #fname < pad then
-                                fname = fname .. (" "):rep(pad - #fname)
+                        local fname_width = vim.fn.strdisplaywidth(fname)
+                        if fname_width < pad then
+                                fname = fname .. (" "):rep(pad - fname_width)
                         end
                         -- stylua: ignore
                         local validFmt = (e.type == "")
