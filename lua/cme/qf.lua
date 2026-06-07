@@ -153,14 +153,19 @@ function M.quickfixtextfunc(info)
                         end
                         local lnum = e.lnum > 99999 and -1 or e.lnum
                         local col = e.col > 999 and -1 or e.col
-                        local qtype = e.type == "" and "" or e.type:sub(1, 1):upper() .. "|"
+
+                        -- strip the ^A helpgrep from the type field
+                        local char = e.type:sub(1, 1)
+                        local is_tag = char == "\1"
+                        local qtype = (e.type == "" or is_tag) and "" or char:upper() .. "|"
+
                         local pad = vim.g.cme.qf_pad or 34
                         local fname_width = vim.fn.strdisplaywidth(fname)
                         if fname_width < pad then
                                 fname = fname .. (" "):rep(pad - fname_width)
                         end
                         -- stylua: ignore
-                        local validFmt = (e.type == "")
+                        local validFmt = (qtype == "")
                                 and "%s%s | %5d:%-3d | %s"
                                 or "%s %s | %5d:%-3d | %s"
                         table.insert(ret, validFmt:format(qtype, fname, lnum, col, e.text))
