@@ -27,42 +27,55 @@ function M.pretty(target_bufnr)
         local ns = vim.api.nvim_create_namespace("cme_qf")
         vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
 
-        local function hl_from(name, link_to)
-                local from = vim.tbl_extend("keep", {}, vim.api.nvim_get_hl(0, { name = link_to }))
-                from.bold = true
-                vim.api.nvim_set_hl(0, name, from)
-        end
-        hl_from("CmeDateTime", "DiagnosticWarn")
-        hl_from("CmeExitSuccess", "DiagnosticOk")
-        hl_from("CmeExitFailure", "DiagnosticError")
-        hl_from("CmeDuration", "DiagnosticInfo")
-        hl_from("CmeDirectory", "DiagnosticInfo")
+        -- stylua: ignore
+        local raw = vim.fn.getqflist({ title = 0 }).title
+        local is_cme = type(raw) == "string" and raw:match("^compilation://")
 
-        local targets = { 0, 1, vim.api.nvim_buf_line_count(bufnr) - 1 }
+        -- since we globally set 'qftf' and listen to filetype events, we must
+        -- differentiate between cme-managed qflists and native ones (helpgrep,
+        -- vimgrep, etc.) so we don't apply the header and footer extmarks
+        if is_cme then
+                local function hl_from(name, link_to)
+                        local from = vim.tbl_extend(
+                                "keep",
+                                {},
+                                vim.api.nvim_get_hl(0, { name = link_to })
+                        )
+                        from.bold = true
+                        vim.api.nvim_set_hl(0, name, from)
+                end
+                hl_from("CmeDateTime", "DiagnosticWarn")
+                hl_from("CmeExitSuccess", "DiagnosticOk")
+                hl_from("CmeExitFailure", "DiagnosticError")
+                hl_from("CmeDuration", "DiagnosticInfo")
+                hl_from("CmeDirectory", "DiagnosticInfo")
 
-        local rules = {
-                ["%d+-%d+-%d+ %d+։%d+։%d+"] = "CmeDateTime",
-                ["%d[%d։]*%.%d%d%d"] = "CmeDuration",
-                ["finished"] = "CmeExitSuccess",
-                ["killed"] = "CmeExitFailure",
-                ["exited abnormally"] = "CmeExitFailure",
-                ["signal %d+"] = { group = "CmeExitFailure", offset = { left = 6 } },
-                ["code %d+"] = { group = "CmeExitFailure", offset = { left = 4 } },
-                ["%s[~/].*"] = { group = "CmeDirectory", offset = { right = 4 } },
-        }
+                local targets = { 0, 1, vim.api.nvim_buf_line_count(bufnr) - 1 }
 
-        for _, row in ipairs(targets) do
-                local text = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1]
-                for pattern, opts in pairs(text and rules or {}) do
-                        local group = type(opts) == "string" and opts or opts.group
-                        local l = type(opts) == "table" and opts.offset.left or 0
-                        local r = type(opts) == "table" and opts.offset.right or 0
-                        local s, e = text:find(pattern)
-                        if s then
-                                vim.api.nvim_buf_set_extmark(bufnr, ns, row, s - 1 + l, {
-                                        end_col = e - r,
-                                        hl_group = group,
-                                })
+                local rules = {
+                        ["%d+-%d+-%d+ %d+։%d+։%d+"] = "CmeDateTime",
+                        ["%d[%d։]*%.%d%d%d"] = "CmeDuration",
+                        ["finished"] = "CmeExitSuccess",
+                        ["killed"] = "CmeExitFailure",
+                        ["exited abnormally"] = "CmeExitFailure",
+                        ["signal %d+"] = { group = "CmeExitFailure", offset = { left = 6 } },
+                        ["code %d+"] = { group = "CmeExitFailure", offset = { left = 4 } },
+                        ["%s[~/].*"] = { group = "CmeDirectory", offset = { right = 4 } },
+                }
+
+                for _, row in ipairs(targets) do
+                        local text = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1]
+                        for pattern, opts in pairs(text and rules or {}) do
+                                local group = type(opts) == "string" and opts or opts.group
+                                local l = type(opts) == "table" and opts.offset.left or 0
+                                local r = type(opts) == "table" and opts.offset.right or 0
+                                local s, e = text:find(pattern)
+                                if s then
+                                        vim.api.nvim_buf_set_extmark(bufnr, ns, row, s - 1 + l, {
+                                                end_col = e - r,
+                                                hl_group = group,
+                                        })
+                                end
                         end
                 end
         end
@@ -74,7 +87,9 @@ function M.pretty(target_bufnr)
         end
         local limit = vim.g.cme.qf_pad or 34
         local line_count = vim.api.nvim_buf_line_count(bufnr)
-        for row = 2, line_count - 2 do
+        local start_row = is_cme and 2 or 0
+        local end_row = is_cme and line_count - 2 or line_count - 1
+        for row = start_row, end_row do
                 local text = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1]
                 if not text then
                         break
