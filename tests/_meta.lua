@@ -1,20 +1,16 @@
 ---@meta _
 -- Definition of Busted/luassert types for the LSP.
 
----@class luassert.modifier
----@field equal fun(expected: any, actual: any)
----@field same fun(expected: any, actual: any)
----@field ["true"] fun(v: any)
----@field ["false"] fun(v: any)
----@field ["nil"] fun(v: any)
-
 ---@class luassert
----@field are luassert.modifier
----@field is luassert.modifier
----@field is_not luassert.modifier
+--- Shorthand identifiers only; modifier chains like `assert.are.nil`
+--- use Lua keywords, which cannot be used as field names after a dot.
+---
+---@field truthy fun(v: any)
+---@field falsy fun(v: any)
 ---@field is_true fun(v: any)
 ---@field is_false fun(v: any)
 ---@field is_nil fun(v: any)
+---@field is_not_nil fun(v: any)
 ---@field are_equal fun(expected: any, actual: any)
 ---@field are_same fun(expected: any, actual: any)
 
