@@ -17,6 +17,8 @@
         "diagnostics": {
                 "globals": [
                         "vim",
+                        // custom
+                        "clear"
                 ],
                 "unusedLocalExclude": [
                         "_*"

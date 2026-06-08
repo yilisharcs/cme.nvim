@@ -1,3 +1,4 @@
 *.bak
 .direnv/
 .repro/
+tests/artifacts/

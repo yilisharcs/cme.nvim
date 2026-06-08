@@ -11,6 +11,9 @@ if not status then
         os.exit(1)
 end
 
+-- mocking library. returns an object with `:revert()` method
+_G.stub = require("luassert.stub").new
+
 -- point buster at the tests/ directory
 _G.arg = {
         "tests",
