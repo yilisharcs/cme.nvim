@@ -17,6 +17,5 @@ lint:
 format:
         stylua .
 
-
 test:
         nvim --clean --headless -l tests/run.lua
