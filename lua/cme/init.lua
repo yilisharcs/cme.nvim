@@ -106,7 +106,7 @@ local qf = require("cme.qf")
 ---     Default:
 --- >lua
 ---     {
----             [vim.o.grepformat] = { "grep", "rg" },
+---             ["%f:%l:%c:%m,%f:%l:%m"] = { "grep", "rg" },
 ---             ["%f::0,%l"] = { "find", "fd" },
 ---     }
 --- <
@@ -161,7 +161,7 @@ CME.config = {
         qf_format = true,
         qf_pad = 34,
         efm_rules = {
-                [vim.o.grepformat] = { "grep", "rg" },
+                ["%f:%l:%c:%m,%f:%l:%m"] = { "grep", "rg" },
                 ["%f::0,%l"] = { "find", "fd" },
         },
         modifiers = {

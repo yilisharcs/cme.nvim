@@ -113,7 +113,7 @@ vim.g.cme = {
         qf_pad = 34,
         -- Map errorformat to a list of commands.
         efm_rules = {
-                [vim.o.grepformat] = { "grep", "rg" },
+                ["%f:%l:%c:%m,%f:%l:%m"] = { "grep", "rg" },
                 ["%f::0,%l"] = { "find", "fd" },
         },
         -- Command mutation rules.

@@ -103,7 +103,7 @@ Fields ~
     Default:
 >lua
     {
-            [vim.o.grepformat] = { "grep", "rg" },
+            ["%f:%l:%c:%m,%f:%l:%m"] = { "grep", "rg" },
             ["%f::0,%l"] = { "find", "fd" },
     }
 <
