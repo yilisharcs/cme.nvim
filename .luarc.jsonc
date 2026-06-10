@@ -3,6 +3,8 @@
         "runtime": {
                 "version": "LuaJIT",
                 "path": [
+                        "?.lua",
+                        "?/init.lua",
                         "lua/?.lua",
                         "lua/?/init.lua"
                 ]
@@ -23,20 +25,15 @@
                 "unusedLocalExclude": [
                         "_*"
                 ],
-                "neededFileStatus": {
-                        "codestyle-check": "Any",
-                        "doc-check": "Any",
-                        "type-check": "Any"
-                },
                 "groupFileStatus": {
                         "ambiguity": "Any",
                         "duplicate": "Any",
                         "global": "Any",
-                        "luadoc": "Any",
+                        "luadoc": "None",
                         "redefined": "Any",
                         "strict": "Any",
-                        "strong": "Any",
-                        "type": "Any",
+                        "strong": "None",
+                        "type-check": "Any",
                         "unbalanced": "Any",
                         "unused": "Any"
                 }
