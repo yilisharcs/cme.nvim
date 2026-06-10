@@ -1,6 +1,8 @@
 ---@meta _
 -- Definition of Busted/luassert types for the LSP.
 
+error("Cannot require a meta file")
+
 ---@class luassert
 --- Shorthand identifiers only; modifier chains like `assert.are.nil`
 --- use Lua keywords, which cannot be used as field names after a dot.

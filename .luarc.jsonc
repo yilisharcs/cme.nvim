@@ -10,11 +10,11 @@
                 ]
         },
         "workspace": {
+                "checkThirdParty": false,
                 "library": [
                         "$VIMRUNTIME/lua",
                         "${3rd}/busted/library"
-                ],
-                "checkThirdParty": false
+                ]
         },
         "diagnostics": {
                 "globals": [

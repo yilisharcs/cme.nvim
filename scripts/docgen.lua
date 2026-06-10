@@ -433,7 +433,7 @@ local readme_hooks = vim.deepcopy(minidoc.config.hooks)
 --       the README.md does not need a tags file.
 readme_hooks.write_post = function(d)
         local output = d.info.output
-        local msg = ("Help file %s is successfully generated."):format(vim.inspect(output))
+        local msg = ("%s is successfully generated."):format(vim.inspect(output))
         vim.notify(msg, vim.log.levels.INFO)
 end
 
