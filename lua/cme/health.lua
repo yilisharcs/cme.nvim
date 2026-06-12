@@ -33,10 +33,7 @@ function Health.check()
                                         end
                                 end
                                 if count > 0 then
-                                        table.insert(
-                                                incompat,
-                                                ("%s (%d usages)"):format(name, count)
-                                        )
+                                        table.insert(incompat, ("%s (%d usages)"):format(name, count))
                                 end
                         end
                 end

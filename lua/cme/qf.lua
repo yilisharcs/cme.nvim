@@ -36,11 +36,7 @@ function M.pretty(target_bufnr)
         -- vimgrep, etc.) so we don't apply the header and footer extmarks
         if is_cme then
                 local function hl_from(name, link_to)
-                        local from = vim.tbl_extend(
-                                "keep",
-                                {},
-                                vim.api.nvim_get_hl(0, { name = link_to })
-                        )
+                        local from = vim.tbl_extend("keep", {}, vim.api.nvim_get_hl(0, { name = link_to }))
                         from.bold = true
                         vim.api.nvim_set_hl(0, name, from)
                 end
@@ -113,10 +109,8 @@ function M.pretty(target_bufnr)
                 if fname_visual_width > limit then
                         -- non-ASCII characters have different widths.
                         -- we can't assume bytecount == length.
-                        local suffix_bytes = #vim.fn.matchstr(
-                                fname,
-                                "\\%>" .. (fname_visual_width - limit + 1) .. "v.*"
-                        )
+                        local suffix_bytes =
+                                #vim.fn.matchstr(fname, "\\%>" .. (fname_visual_width - limit + 1) .. "v.*")
                         local cutoff = #fname - suffix_bytes
                         local leading = #fname_slice - #fname_slice:gsub("^%s+", "")
                         local start_col = fname_start + leading - 1

@@ -183,11 +183,7 @@ CME.config = {
 ---@param config cme.Opts? Optional overrides.
 function CME.setup(config)
         if vim.version.cmp(vim.version(), { 0, 12, 0 }) < 0 then
-                vim.notify(
-                        "cme.nvim requires Neovim 0.12+",
-                        vim.log.levels.ERROR,
-                        { title = "cme" }
-                )
+                vim.notify("cme.nvim requires Neovim 0.12+", vim.log.levels.ERROR, { title = "cme" })
                 return
         end
 
@@ -368,10 +364,7 @@ function CME.compile(opts)
 
                         -- if killed internally or externally
                         if obj.signal == 15 or obj.signal == 2 then
-                                footer_msg = ("Compilation killed at %s, duration %s"):format(
-                                        end_time,
-                                        duration
-                                )
+                                footer_msg = ("Compilation killed at %s, duration %s"):format(end_time, duration)
                                 t_status = "killed"
                                 exit_val = obj.signal
                         elseif obj.signal ~= 0 then
@@ -389,10 +382,7 @@ function CME.compile(opts)
                                         duration
                                 )
                         else
-                                footer_msg = ("Compilation finished at %s, duration %s"):format(
-                                        end_time,
-                                        duration
-                                )
+                                footer_msg = ("Compilation finished at %s, duration %s"):format(end_time, duration)
                         end
 
                         vim.fn.setqflist({}, "a", {
@@ -415,10 +405,7 @@ function CME.compile(opts)
 
                         if opts.bang then
                                 local is_err = obj.signal ~= 0 or obj.code ~= 0
-                                local msg = ("Job %s: %s"):format(
-                                        is_err and "failed" or "complete",
-                                        cmd
-                                )
+                                local msg = ("Job %s: %s"):format(is_err and "failed" or "complete", cmd)
                                 vim.notify(
                                         msg,
                                         is_err and vim.log.levels.ERROR or vim.log.levels.INFO,
@@ -458,11 +445,7 @@ function CME.recompile(opts)
                 H.state.watch_autocmd = nil
 
                 if not opts or not opts.args or opts.args == "" then
-                        vim.notify(
-                                "Compilation watcher disabled.",
-                                vim.log.levels.INFO,
-                                { title = "cme" }
-                        )
+                        vim.notify("Compilation watcher disabled.", vim.log.levels.INFO, { title = "cme" })
                         vim.cmd("silent cclose")
                         return
                 end
@@ -486,10 +469,7 @@ function CME.recompile(opts)
                         local filename = vim.fn.fnamemodify(data.match, ":t")
                         local extension = vim.fn.fnamemodify(data.match, ":e")
 
-                        if
-                                vim.tbl_contains(blacklist.name, filename)
-                                or vim.tbl_contains(blacklist.ext, extension)
-                        then
+                        if vim.tbl_contains(blacklist.name, filename) or vim.tbl_contains(blacklist.ext, extension) then
                                 return
                         end
 
@@ -741,8 +721,7 @@ function H.get_executable(cmd_str)
                 end
                 -- command/separator logic (but only if outside quotes)
                 if not quote_char or entering_quotes then
-                        local is_separator = vim.tbl_contains(separators, token)
-                                or token:sub(-1) == ";"
+                        local is_separator = vim.tbl_contains(separators, token) or token:sub(-1) == ";"
                         if is_separator then
                                 candidate = nil
                                 candidate_end = nil
