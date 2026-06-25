@@ -15,8 +15,7 @@
         pkgs.neovim
         pkgs.luajitPackages.busted
         # runner deps
-        pkgs.just
-        pkgs.nushell
+        pkgs.gnumake
         # linter
         pkgs.lua-language-server
         # formatters
