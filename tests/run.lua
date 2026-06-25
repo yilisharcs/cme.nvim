@@ -4,23 +4,22 @@
 -- this is a reliable baseline for tests
 dofile("scripts/repro.lua")
 
--- load up buster
+-- load up busted
 local status, runner = pcall(require, "busted.runner")
 if not status then
-        print("[ERROR] Busted not found. Ensure luajitPackages.busted is in your environment.\n")
+        print("error: Busted not found. Ensure luajitPackages.busted is in your environment.\n")
         os.exit(1)
 end
 
 -- mocking library. returns an object with `:revert()` method
 _G.stub = require("luassert.stub").new
 
--- point buster at the tests/ directory
+-- point busted at the tests/ directory
 _G.arg = {
         "tests",
         "--pattern=_spec.lua",
 }
 runner({
-        -- busted calls `os.exit` if `standalone` is true OR if tests fail. set it to false
-        -- so Nvim handles the exit if tests pass, and let busted force an exit if they fail.
+        -- busted is not the entry point; nvim calls it as a library
         standalone = false,
 })
