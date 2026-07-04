@@ -132,6 +132,9 @@ vim.g.cme = {
                         end
                 end,
         },
+        -- Command-specific syntax injection.
+        -- Maps command prefixes to |filetype| names for the quickfix buffer.
+        syntax = {},
 }
 ```
 

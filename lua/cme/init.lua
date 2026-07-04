@@ -134,6 +134,11 @@ local qf = require("cme.qf")
 ---     }
 --- <
 ---
+---@field syntax table<string, string[]> Command-specific syntax injection.
+---     Maps command prefixes to |filetype| names for the quickfix buffer.
+---
+---     Default: `{}`
+---
 ---@usage >lua
 ---     ---@type cme.Opts
 ---     vim.g.cme = {
@@ -148,6 +153,9 @@ local qf = require("cme.qf")
 ---             },
 ---             modifiers = {
 ---                     ls = "-la",
+---             },
+---             syntax = {
+---                     git = { "git" },
 ---             },
 ---     }
 --- <
@@ -172,6 +180,7 @@ CME.config = {
                         end
                 end,
         },
+        syntax = {},
 }
 
 --- Module setup.
@@ -606,6 +615,20 @@ function H.validate_config(config)
                         vim.validate(("modifiers['%s']"):format(exe), mod, { "string", "function" })
                 end
         end
+
+        vim.validate("syntax", c.syntax, "table", true)
+        if c.syntax then
+                for ft, commands in pairs(c.syntax) do
+                        vim.validate("syntax", ft, "string")
+
+                        local context = ('syntax["%s"]'):format(ft)
+                        vim.validate(context, commands, "table")
+
+                        for i, cmd in ipairs(commands) do
+                                vim.validate(("%s[%d]"):format(context, i), cmd, "string")
+                        end
+                end
+        end
 end
 
 ---@private
@@ -635,6 +658,21 @@ function H.create_autocommands()
                 callback = function(data)
                         vim.wo[0][0].statusline = "%!v:lua.require'cme.qf'.statusline_expr()"
                         qf.pretty(data.buf)
+
+                        -- apply custom syntax if configured
+                        local title = vim.fn.getqflist({ title = 0 }).title
+                        if not qf.is_cme_qf(title) then
+                                goto done
+                        end
+                        for ft, commands in pairs(CME.config.syntax) do
+                                for _, pattern in ipairs(commands) do
+                                        if H.state.last_cmd:match("^" .. vim.pesc(pattern)) then
+                                                vim.bo[data.buf].filetype = ft
+                                                return
+                                        end
+                                end
+                        end
+                        ::done::
                 end,
         })
 

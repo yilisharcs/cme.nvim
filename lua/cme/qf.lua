@@ -1,5 +1,13 @@
 local M = {}
 
+--- Whether a quickfix list belongs to cme.
+---
+---@param title string Quickfix list title.
+---@return boolean
+function M.is_cme_qf(title)
+        return type(title) == "string" and title:match("^compilation://") ~= nil
+end
+
 function M.statusline_expr()
         local ok, raw = pcall(vim.api.nvim_win_get_var, vim.g.statusline_winid, "quickfix_title")
 
@@ -29,7 +37,7 @@ function M.pretty(target_bufnr)
 
         -- stylua: ignore
         local raw = vim.fn.getqflist({ title = 0 }).title
-        local is_cme = type(raw) == "string" and raw:match("^compilation://")
+        local is_cme = M.is_cme_qf(raw)
 
         -- since we globally set 'qftf' and listen to filetype events, we must
         -- differentiate between cme-managed qflists and native ones (helpgrep,

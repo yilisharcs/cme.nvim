@@ -131,6 +131,11 @@ Fields ~
     }
 <
 
+{syntax} `(table<string, string[]>)` Command-specific syntax injection.
+    Maps command prefixes to |filetype| names for the quickfix buffer.
+
+    Default: `{}`
+
 Usage ~
 >lua
     ---@type cme.Opts
@@ -146,6 +151,9 @@ Usage ~
             },
             modifiers = {
                     ls = "-la",
+            },
+            syntax = {
+                    git = { "git" },
             },
     }
 <
