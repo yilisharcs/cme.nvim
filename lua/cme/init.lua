@@ -1012,7 +1012,7 @@ return CME
 ---     nvim --clean -u scripts/repro.lua
 --- <
 --- If the issue persists in the minimal environment, please report it at:
----     https://codeberg.org/yilisharcs/cme.nvim/issues
+---     https://github.com/yilisharcs/cme.nvim/issues
 
 ---@toc_entry SIMILAR PLUGINS
 ---@tag CME-similar-plugins

@@ -11,7 +11,7 @@ local spec = {
 }
 
 local repo = spec.author .. "/" .. spec.id .. ".nvim"
-local url = "https://codeberg.org/" .. repo
+local url = "https://github.com/" .. repo
 
 -- documentation manifest. `entrypoint` is explicitly placed at the first index
 -- of the input array passed to `minidoc.generate()` so it can be accessible as
