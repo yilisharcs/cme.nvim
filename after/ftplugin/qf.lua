@@ -1,5 +1,7 @@
 if vim.g.cme.interrupt == true then
-        vim.keymap.set("n", "<C-c>", function() require("cme").kill(true) end, {
+        vim.keymap.set("n", "<C-c>", function()
+                require("cme").kill(true)
+        end, {
                 buffer = true,
                 desc = "Cancel active compilation task",
         })
