@@ -938,6 +938,9 @@ function H.flush_data(ctx)
         })
 
         if ctx.first_flush then
+                -- TODO: consider calling pretty every time. performance considerations required.
+                -- NOTE: i'm pretty sure that https://github.com/neovim/neovim/issues/20783 would
+                --       solve my problems
                 qf.pretty()
                 ctx.first_flush = false
         end

@@ -4,21 +4,17 @@
     - [x] Colorize the quickfix list
     - [x] Implement `:Recompile` recompile on BufWritePost autocmd
     - [x] Remove lines with Erase on Line termcode from output
-    - [ ] Write better documentation
+    - [x] Write better documentation
     - [x] Open `:copen` as soon as the terminal window closes/job is over
     - [x] Parse the quickfix list to get the proper number of errors for the qftitle
     - [ ] process massive outputs from ripgrep or fd without stuttering or blocking
 - [ ] Add tmux as an option to pass through commands for persistence
-- [x] Add errorformat for find, fd
-- [x] Look into using extmarks for prettifying the qflist as syntax files are byzantine
-- [x] Remove toggleterm dependency
 - [ ] Try to leverage the location windows for multiple Compile commands
-- [x] Expose option key for errorformats, both default and custom
-- [x] shellescape!!
 - [ ] make sudo work again
-- [ ] update assets screenshot with the vanilla statusline
-    - [ ] ... and the vanilla `vim.o.quickfixtextfunc`
-- [x] bring over docgen script from quarrel
 - [ ] Add extra ansi filters
     - [ ] `printf '\e[32m✔\e[0m %s\n' "$@"`
     - [ ] `printf '\e[31m✘\e[0m %s\n' "$@" >&2`
+- [ ] expand checkhealth
+- [ ] need to stream data more smoothly (`jj la` in neovim git repo)
+- [ ] fix existing test
+- [ ] more tests
