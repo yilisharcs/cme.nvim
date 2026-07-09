@@ -560,7 +560,7 @@ readme_hooks.write_pre = function(lines)
                         goto next_line
                 end
 
-                if line:match("^%s+https://codeberg.org/" .. repo .. "/issues$") then
+                if line:match("^%s+" .. url .. "/issues$") then
                         table.insert(res, "")
                         table.insert(res, vim.trim(line))
                         goto next_line
