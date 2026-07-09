@@ -222,15 +222,10 @@ function CME.compile(opts, conf)
         opts = opts or {}
         conf = conf or {}
 
-        -- parse arguments and set errorformat {{{
-        -- resolve the command string from args or history
-        local raw_args = (opts.args and opts.args ~= "") and opts.args or H.state.last_cmd
-        if not raw_args or raw_args == "" then
-                vim.notify("Command required", vim.log.levels.ERROR, { title = "cme" })
+        local raw_args, cmd = H.resolve_cmd(opts)
+        if not raw_args then
                 return
         end
-
-        local cmd = CME.config.shell_expand and vim.fn.expandcmd(raw_args) or raw_args
 
         -- clear old processes if any exist
         CME.kill()
@@ -238,79 +233,11 @@ function CME.compile(opts, conf)
         H.state.last_cmd = cmd
         H.state.cwd = vim.uv.cwd() or vim.env.HOME or "/"
 
-        local exe, exe_end = H.get_executable(cmd)
-        -- apply modifiers
-        local mod = exe and CME.config.modifiers[exe]
-        local flags
-        if type(mod) == "function" then
-                flags = mod(cmd)
-        elseif type(mod) == "string" then
-                flags = mod
-        end
-        if flags and flags ~= "" and exe_end then
-                local before = cmd:sub(1, exe_end)
-                local after = cmd:sub(exe_end + 1)
-                cmd = before .. " " .. flags .. after
-        end
+        local exe
+        cmd, exe = H.apply_modifiers(cmd)
+        local efm = H.resolve_efm(exe)
 
-        -- universal line-based fallback
-        local efm = "%l"
-        if not exe then
-                goto found_efm
-        end
-
-        -- check against configured efm rules
-        for rule_efm, commands in pairs(CME.config.efm_rules) do
-                if vim.tbl_contains(commands, exe) then
-                        if rule_efm == "buffer" then
-                                efm = vim.bo.efm ~= "" and vim.bo.efm or vim.o.efm
-                        else
-                                efm = rule_efm
-                        end
-                        goto found_efm
-                end
-        end
-
-        do -- scope `makeprg_exe` here so the goto doesn't cause luajit to shit itself
-                -- use buffer's efm if it matches the current compiler
-                local makeprg_exe = vim.o.makeprg:match("([^%s]+)")
-                if makeprg_exe and H.get_executable(makeprg_exe) == exe then
-                        efm = vim.bo.efm ~= "" and vim.bo.efm or vim.o.efm
-                        goto found_efm
-                end
-        end
-
-        ::found_efm::
-        -- }}}
-
-        -- any two commands with large output back to back will cause horrible
-        -- lagging. deleting the active qf buffer deals with that well enough.
-        local qf_size = vim.fn.getqflist({ size = 0 }).size
-        if qf_size > 20000 then
-                local qf_bufnr = vim.fn.getqflist({ qfbufnr = 0 }).qfbufnr
-                if qf_bufnr and qf_bufnr > 0 and vim.api.nvim_buf_is_valid(qf_bufnr) then
-                        vim.api.nvim_buf_delete(qf_bufnr, { force = true })
-                end
-        end
-
-        local title = ("compilation://%-6s %-5s [E:0 W:0 I:0] [cmd:%s]"):format("run", "[_]", conf.cmd_display or cmd)
-        local header = {
-                ("-*- directory: %s -*-"):format(vim.fn.fnamemodify(H.state.cwd, ":~")),
-                -- HACK: this is not a colon. this is the "Armenian Full Stop", U+0589.
-                --       using this prevents the errorformat from incorrectly picking
-                --       up the duration as a valid entry.
-                ("Compilation started at %s"):format(os.date("%Y-%m-%d %H։%M։%S")),
-                " ", -- anti `%-G` padding for header and footer
-        }
-        vim.fn.setqflist({}, " ", {
-                title = title,
-                efm = efm,
-                lines = header,
-        })
-
-        if not opts.bang then
-                vim.cmd("copen | wincmd p")
-        end
+        H.prepare_qf(efm, cmd, conf, opts.bang)
 
         local command = vim.iter({
                 CME.config.shell,
@@ -349,93 +276,7 @@ function CME.compile(opts, conf)
                 env = { CME_NVIM = 1 },
         }, function(obj)
                 vim.schedule(function()
-                        -- exit handler: don't let old jobs hijack the status
-                        if H.state.active_job ~= ctx.job then
-                                return
-                        end
-
-                        -- commit any text with trailing newlines
-                        if ctx.line_fragment ~= "" then
-                                table.insert(ctx.queue, ctx.line_fragment)
-                                ctx.line_fragment = ""
-                        end
-                        -- flush before we write the footer
-                        H.flush_data(ctx)
-
-                        local delta = (vim.uv.hrtime() - start_ns) / 1e9
-                        local duration = H.format_duration(delta)
-
-                        -- HACK: this is not a colon. this is the "Armenian Full Stop", U+0589.
-                        --       using this prevents the errorformat from incorrectly picking
-                        --       up the duration as a valid entry.
-                        local end_time = os.date("%Y-%m-%d %H։%M։%S")
-
-                        local footer_msg
-                        local t_status = "exit"
-                        local exit_val = obj.code
-
-                        -- if killed internally or externally
-                        if obj.signal == 15 or obj.signal == 2 then
-                                footer_msg = ("Compilation killed at %s, duration %s"):format(end_time, duration)
-                                t_status = "killed"
-                                exit_val = obj.signal
-                        elseif obj.signal ~= 0 then
-                                footer_msg = ("Compilation exited abnormally with signal %d at %s, duration %s"):format(
-                                        obj.signal,
-                                        end_time,
-                                        duration
-                                )
-                                t_status = "signal"
-                                exit_val = obj.signal
-                        elseif obj.code ~= 0 then
-                                footer_msg = ("Compilation exited abnormally with code %d at %s, duration %s"):format(
-                                        obj.code,
-                                        end_time,
-                                        duration
-                                )
-                        else
-                                footer_msg = ("Compilation finished at %s, duration %s"):format(end_time, duration)
-                        end
-
-                        vim.fn.setqflist({}, "a", {
-                                lines = {
-                                        " ", -- anti `%-G` padding for header and footer
-                                        footer_msg,
-                                },
-                                title = ("compilation://%-6s %-5s [E:%d W:%d I:%d] [cmd:%s]"):format(
-                                        t_status,
-                                        ("[%d]"):format(exit_val),
-                                        ctx.counts.E,
-                                        ctx.counts.W,
-                                        ctx.counts.I,
-                                        ctx.cmd_display or cmd
-                                ),
-                        })
-
-                        qf.pretty()
-                        vim.cmd("cbottom")
-
-                        if opts.bang then
-                                local is_err = obj.signal ~= 0 or obj.code ~= 0
-                                local msg = ("Job %s: %s"):format(is_err and "failed" or "complete", cmd)
-                                vim.notify(
-                                        msg,
-                                        is_err and vim.log.levels.ERROR or vim.log.levels.INFO,
-                                        { title = "cme" }
-                                )
-                        end
-
-                        local qfbuf = vim.fn.getqflist({ qfbufnr = 0 }).qfbufnr
-                        vim.api.nvim_exec_autocmds("User", {
-                                pattern = "CmeFinished",
-                                data = {
-                                        code = obj.code,
-                                        signal = obj.signal,
-                                        bufnr = qfbuf,
-                                },
-                        })
-
-                        H.state.active_job = nil
+                        H.on_exit(ctx, opts, start_ns, obj)
                 end)
         end)
 
@@ -468,36 +309,7 @@ function CME.recompile(opts, conf)
         H.state.watch_autocmd = vim.api.nvim_create_autocmd({ "BufWritePost" }, {
                 desc = "Watch for recompilation",
                 group = augroup,
-                callback = function(data)
-                        local blacklist = {
-                                name = {
-                                        "COMMIT_EDITMSG",
-                                        "git-rebase-todo",
-                                },
-                                ext = {
-                                        "jjdescription",
-                                },
-                        }
-
-                        local filename = vim.fn.fnamemodify(data.match, ":t")
-                        local extension = vim.fn.fnamemodify(data.match, ":e")
-
-                        if vim.tbl_contains(blacklist.name, filename) or vim.tbl_contains(blacklist.ext, extension) then
-                                return
-                        end
-
-                        if not H.state.cwd or not data.match:find(H.state.cwd, 1, true) then
-                                return
-                        end
-
-                        -- focus guard: don't re-run if we're in a different project
-                        local focused_buf = vim.api.nvim_buf_get_name(0)
-                        if not H.state.cwd or not focused_buf:find(H.state.cwd, 1, true) then
-                                return
-                        end
-
-                        CME.compile(opts, conf)
-                end,
+                callback = H.on_save(opts, conf),
         })
 
         CME.compile(opts, conf)
@@ -800,6 +612,257 @@ function H.get_executable(cmd_str)
 end
 
 ---@private
+--- Resolve the command string from arguments or history.
+---
+---@param opts { args: string? } Command options.
+---
+---@return string?, string? # raw_args, expanded cmd; nil if unavailable.
+function H.resolve_cmd(opts)
+        -- resolve the command string from args or history
+        local raw_args = (opts.args and opts.args ~= "") and opts.args or H.state.last_cmd
+        if not raw_args or raw_args == "" then
+                vim.notify("Command required", vim.log.levels.ERROR, { title = "cme" })
+                return nil, nil
+        end
+
+        local cmd = CME.config.shell_expand and vim.fn.expandcmd(raw_args) or raw_args
+        return raw_args, cmd
+end
+
+---@private
+--- Inject modifier flags after the executable in a command string.
+---
+---@param cmd string The command to modify.
+---
+---@return string, string? # Modified command and resolved executable name.
+function H.apply_modifiers(cmd)
+        local exe, exe_end = H.get_executable(cmd)
+        -- apply modifiers
+        local mod = exe and CME.config.modifiers[exe]
+        local flags
+        if type(mod) == "function" then
+                flags = mod(cmd)
+        elseif type(mod) == "string" then
+                flags = mod
+        end
+        if flags and flags ~= "" and exe_end then
+                local before = cmd:sub(1, exe_end)
+                local after = cmd:sub(exe_end + 1)
+                cmd = before .. " " .. flags .. after
+        end
+        return cmd, exe
+end
+
+---@private
+--- Determine the errorformat for a given executable.
+---
+--- Checks configured efm rules, buffer efm, and makeprg in order.
+--- Falls back to line-based parsing ("%l") if no rule matches.
+---
+---@param exe string? The resolved executable name.
+---
+---@return string # Errorformat string.
+function H.resolve_efm(exe)
+        -- universal line-based fallback
+        local efm = "%l"
+
+        if not exe then
+                return efm
+        end
+
+        -- check against configured efm rules
+        for rule_efm, commands in pairs(CME.config.efm_rules) do
+                if vim.tbl_contains(commands, exe) then
+                        if rule_efm == "buffer" then
+                                efm = vim.bo.efm ~= "" and vim.bo.efm or vim.o.efm
+                        else
+                                efm = rule_efm
+                        end
+                        return efm
+                end
+        end
+
+        -- use buffer's efm if it matches the current compiler
+        local makeprg_exe = vim.o.makeprg:match("([^%s]+)")
+        if makeprg_exe and H.get_executable(makeprg_exe) == exe then
+                efm = vim.bo.efm ~= "" and vim.bo.efm or vim.o.efm
+        end
+
+        return efm
+end
+
+---@private
+--- Initialize the quickfix list for a new compilation run.
+---
+--- Trims oversized qf buffers, writes the header, and opens the
+--- quickfix window unless {bang} is true.
+---
+---@param efm string The errorformat for this run.
+---@param cmd string The command being executed.
+---@param conf cme.RunConf Per-run configuration.
+---@param bang boolean? Suppress quickfix opening when true.
+function H.prepare_qf(efm, cmd, conf, bang)
+        -- any two commands with large output back to back will cause horrible
+        -- lagging. deleting the active qf buffer deals with that well enough.
+        local qf_size = vim.fn.getqflist({ size = 0 }).size
+        if qf_size > 20000 then
+                local qf_bufnr = vim.fn.getqflist({ qfbufnr = 0 }).qfbufnr
+                if qf_bufnr and qf_bufnr > 0 and vim.api.nvim_buf_is_valid(qf_bufnr) then
+                        vim.api.nvim_buf_delete(qf_bufnr, { force = true })
+                end
+        end
+
+        local title = ("compilation://%-6s %-5s [E:0 W:0 I:0] [cmd:%s]"):format("run", "[_]", conf.cmd_display or cmd)
+        local header = {
+                ("-*- directory: %s -*-"):format(vim.fn.fnamemodify(H.state.cwd, ":~")),
+                -- HACK: this is not a colon. this is the "Armenian Full Stop", U+0589.
+                --       using this prevents the errorformat from incorrectly picking
+                --       up the duration as a valid entry.
+                ("Compilation started at %s"):format(os.date("%Y-%m-%d %H։%M։%S")),
+                " ", -- anti `%-G` padding for header and footer
+        }
+        vim.fn.setqflist({}, " ", {
+                title = title,
+                efm = efm,
+                lines = header,
+        })
+
+        if not bang then
+                vim.cmd("copen | wincmd p")
+        end
+end
+
+---@private
+--- Handle job exit: flush output, write footer, update qf, fire events.
+---
+---@param ctx cme.JobContext Job context.
+---@param opts { bang: boolean? } Command options.
+---@param start_ns number High-resolution start timestamp.
+---@param obj { code: integer, signal: integer } Exit status from |vim.system()|.
+function H.on_exit(ctx, opts, start_ns, obj)
+        -- don't let old jobs hijack the status
+        if H.state.active_job ~= ctx.job then
+                return
+        end
+
+        -- commit any text with trailing newlines
+        if ctx.line_fragment ~= "" then
+                table.insert(ctx.queue, ctx.line_fragment)
+                ctx.line_fragment = ""
+        end
+        -- flush before we write the footer
+        H.flush_data(ctx)
+
+        local delta = (vim.uv.hrtime() - start_ns) / 1e9
+        local duration = H.format_duration(delta)
+
+        -- HACK: this is not a colon. this is the "Armenian Full Stop", U+0589.
+        --       using this prevents the errorformat from incorrectly picking
+        --       up the duration as a valid entry.
+        local end_time = os.date("%Y-%m-%d %H։%M։%S")
+
+        local footer_msg
+        local t_status = "exit"
+        local exit_val = obj.code
+
+        -- if killed internally or externally
+        if obj.signal == 15 or obj.signal == 2 then
+                footer_msg = ("Compilation killed at %s, duration %s"):format(end_time, duration)
+                t_status = "killed"
+                exit_val = obj.signal
+        elseif obj.signal ~= 0 then
+                footer_msg = ("Compilation exited abnormally with signal %d at %s, duration %s"):format(
+                        obj.signal,
+                        end_time,
+                        duration
+                )
+                t_status = "signal"
+                exit_val = obj.signal
+        elseif obj.code ~= 0 then
+                footer_msg = ("Compilation exited abnormally with code %d at %s, duration %s"):format(
+                        obj.code,
+                        end_time,
+                        duration
+                )
+        else
+                footer_msg = ("Compilation finished at %s, duration %s"):format(end_time, duration)
+        end
+
+        vim.fn.setqflist({}, "a", {
+                lines = {
+                        " ", -- anti `%-G` padding for header and footer
+                        footer_msg,
+                },
+                title = ("compilation://%-6s %-5s [E:%d W:%d I:%d] [cmd:%s]"):format(
+                        t_status,
+                        ("[%d]"):format(exit_val),
+                        ctx.counts.E,
+                        ctx.counts.W,
+                        ctx.counts.I,
+                        ctx.cmd_display or ctx.cmd
+                ),
+        })
+
+        qf.pretty()
+        vim.cmd("cbottom")
+
+        if opts.bang then
+                local is_err = obj.signal ~= 0 or obj.code ~= 0
+                local msg = ("Job %s: %s"):format(is_err and "failed" or "complete", ctx.cmd)
+                vim.notify(msg, is_err and vim.log.levels.ERROR or vim.log.levels.INFO, { title = "cme" })
+        end
+
+        local qfbuf = vim.fn.getqflist({ qfbufnr = 0 }).qfbufnr
+        vim.api.nvim_exec_autocmds("User", {
+                pattern = "CmeFinished",
+                data = {
+                        code = obj.code,
+                        signal = obj.signal,
+                        bufnr = qfbuf,
+                },
+        })
+
+        H.state.active_job = nil
+end
+
+---@private
+--- Build the callback for the recompile watcher autocmd.
+---
+--- Checks blacklist, cwd, and focus guards before triggering recompilation.
+---
+---@param opts { args: string? } Command options.
+---@param conf cme.RunConf Per-run configuration.
+---
+---@return fun(data: { match: string }) # Autocommand callback.
+function H.on_save(opts, conf)
+        local blacklist = {
+                name = { "COMMIT_EDITMSG", "git-rebase-todo" },
+                ext = { "jjdescription" },
+        }
+
+        return function(data)
+                local filename = vim.fn.fnamemodify(data.match, ":t")
+                local extension = vim.fn.fnamemodify(data.match, ":e")
+
+                if vim.tbl_contains(blacklist.name, filename) or vim.tbl_contains(blacklist.ext, extension) then
+                        return
+                end
+
+                if not H.state.cwd or not data.match:find(H.state.cwd, 1, true) then
+                        return
+                end
+
+                -- focus guard: don't re-run if we're in a different project
+                local focused_buf = vim.api.nvim_buf_get_name(0)
+                if not H.state.cwd or not focused_buf:find(H.state.cwd, 1, true) then
+                        return
+                end
+
+                CME.compile(opts, conf)
+        end
+end
+
+---@private
 --- Process incoming job data.
 ---
 ---@param ctx cme.JobContext Job context.
@@ -890,7 +953,7 @@ end
 ---
 ---@param seconds number The duration in seconds to format.
 ---
----@return string # A formatted string in the format [DD:][HH:][MM:]SS.mmm.
+---@return string # Formatted string in the format [DD:][HH:][MM:]SS.mmm.
 function H.format_duration(seconds)
         local ms = math.floor((seconds % 1) * 1000)
         local s = math.floor(seconds)
