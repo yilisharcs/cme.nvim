@@ -177,7 +177,7 @@ Public module functions for Compilation Mode, not in Emacs :)
 
 ------------------------------------------------------------------------------
                                                                  *CME.compile()*
-                             `CME.compile`({opts})
+                         `CME.compile`({opts}, {conf})
 Run compilation.
 
 Internally executes the provided command (or last known) in the background
@@ -186,10 +186,11 @@ automatic opening of the quickfix window.
 
 Parameters ~
 {opts} `({ args: string?, bang: boolean? }?)` Command options.
+{conf} `(cme.RunConf?)` Per-run configuration.
 
 ------------------------------------------------------------------------------
                                                                *CME.recompile()*
-                            `CME.recompile`({opts})
+                        `CME.recompile`({opts}, {conf})
 Toggle recompile watcher.
 
 Sets up or tears down an autocommand to run compilation on buffer save.
@@ -199,6 +200,7 @@ window.
 
 Parameters ~
 {opts} `({ args: string?, bang: boolean? }?)` Command options.
+{conf} `(cme.RunConf?)` Per-run configuration.
 
 ------------------------------------------------------------------------------
                                                                     *CME.kill()*

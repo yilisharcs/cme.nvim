@@ -217,8 +217,10 @@ end
 --- automatic opening of the quickfix window.
 ---
 ---@param opts { args: string?, bang: boolean? }? Command options.
-function CME.compile(opts)
+---@param conf cme.RunConf? Per-run configuration.
+function CME.compile(opts, conf)
         opts = opts or {}
+        conf = conf or {}
 
         -- parse arguments and set errorformat {{{
         -- resolve the command string from args or history
@@ -291,7 +293,7 @@ function CME.compile(opts)
                 end
         end
 
-        local title = ("compilation://%-6s %-5s [E:0 W:0 I:0] [cmd:%s]"):format("run", "[_]", cmd)
+        local title = ("compilation://%-6s %-5s [E:0 W:0 I:0] [cmd:%s]"):format("run", "[_]", conf.cmd_display or cmd)
         local header = {
                 ("-*- directory: %s -*-"):format(vim.fn.fnamemodify(H.state.cwd, ":~")),
                 -- HACK: this is not a colon. this is the "Armenian Full Stop", U+0589.
@@ -330,6 +332,7 @@ function CME.compile(opts)
                 efm = efm,
                 counts = { E = 0, W = 0, I = 0 },
                 cmd = cmd,
+                cmd_display = conf.cmd_display,
         }
 
         local start_ns = vim.uv.hrtime()
@@ -405,7 +408,7 @@ function CME.compile(opts)
                                         ctx.counts.E,
                                         ctx.counts.W,
                                         ctx.counts.I,
-                                        cmd
+                                        ctx.cmd_display or cmd
                                 ),
                         })
 
@@ -448,7 +451,8 @@ end
 --- window.
 ---
 ---@param opts { args: string?, bang: boolean? }? Command options.
-function CME.recompile(opts)
+---@param conf cme.RunConf? Per-run configuration.
+function CME.recompile(opts, conf)
         if H.state.watch_autocmd then
                 pcall(vim.api.nvim_del_autocmd, H.state.watch_autocmd)
                 H.state.watch_autocmd = nil
@@ -492,11 +496,11 @@ function CME.recompile(opts)
                                 return
                         end
 
-                        CME.compile(opts)
+                        CME.compile(opts, conf)
                 end,
         })
 
-        CME.compile(opts)
+        CME.compile(opts, conf)
 end
 
 --- Kill active compilation job.
@@ -865,7 +869,7 @@ function H.flush_data(ctx)
                         ctx.counts.E,
                         ctx.counts.W,
                         ctx.counts.I,
-                        ctx.cmd
+                        ctx.cmd_display or ctx.cmd
                 ),
                 items = items,
         })

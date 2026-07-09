@@ -5,6 +5,9 @@ error("Cannot require a meta file")
 
 ---@class (partial) cme.Opts: cme.Config
 
+---@class cme.RunConf
+---@field cmd_display string? Override for the [cmd:...] part of the quickfix title.
+
 ---@class cme.Counts
 ---@field E number Number of errors.
 ---@field W number Number of warnings.
@@ -19,6 +22,7 @@ error("Cannot require a meta file")
 ---@field efm string The active errorformat string for this job.
 ---@field counts cme.Counts Real-time message counters.
 ---@field cmd string The expanded command string being executed.
+---@field cmd_display string? Override for the [cmd:...] part of the quickfix title.
 
 ---@class cme.State
 ---@field active_job vim.SystemObj?
