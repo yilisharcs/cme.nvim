@@ -7,7 +7,12 @@
                         "?/init.lua",
                         "lua/?.lua",
                         "lua/?/init.lua"
-                ]
+                ],
+                "builtin": {
+                        "jit": "Disable",
+                        "ffi": "Disable",
+                        "bit32": "Disable"
+                }
         },
         "workspace": {
                 "checkThirdParty": false,
